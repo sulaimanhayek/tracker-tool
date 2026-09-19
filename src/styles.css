@@ -575,6 +575,7 @@ h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
 }
 
 .board {
+  --stack-peek: 62px;
   position: relative;
   min-height: max(62vh, 552px);
   border: 1px solid var(--border);
@@ -603,6 +604,9 @@ h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
   position: absolute;
   top: 0;
   left: 0;
+  width: var(--note-width);
+  height: var(--note-height);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--note-color);
@@ -661,6 +665,7 @@ h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
 
 .note-text {
   flex: 1;
+  min-height: 0;
   border: 0;
   background: transparent;
   resize: none;
@@ -724,6 +729,29 @@ h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
 }
 
 .note-png:hover, .note-folder:hover { background: rgba(255, 255, 255, 0.65); }
+
+/* Organised board: every note is cut down to its top bar and first line, and
+   the one under the pointer opens over the others. */
+.note.stacked {
+  height: var(--stack-peek);
+  transition: height 180ms ease, box-shadow 180ms ease;
+}
+
+.note.stacked:hover,
+.note.stacked:focus-within {
+  height: var(--note-height);
+  z-index: 500 !important;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.55);
+}
+
+/* Collapsed, the note is only its bar and first line: the controls would
+   otherwise squeeze the text out of view. */
+.note.stacked:not(:hover):not(:focus-within) .note-footer,
+.note.stacked:not(:hover):not(:focus-within) .note-resize {
+  display: none;
+}
+
+.note.stacked .note-text { overflow: hidden; }
 
 .note-resize {
   position: absolute;

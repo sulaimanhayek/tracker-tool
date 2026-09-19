@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import StickyNote from './StickyNote.jsx'
+import { exportNotesToDoc } from './exportDoc'
 import { exportNotesToPng } from './exportPng'
-import { NOTES_STORAGE_KEY, NOTE_COLORS, NOTE_SIZE, stampFilename } from './notes'
+import {
+  NOTES_STORAGE_KEY,
+  NOTE_COLORS,
+  NOTE_SIZE,
+  STACK_GAP_X,
+  STACK_PEEK,
+  STACK_STEP_Y,
+  noteSize,
+  stampFilename
+} from './notes'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 function initialState() {
   const board = { id: uid(), name: 'Board' }
-  return { folders: [board], notes: [], activeFolderId: board.id, topZ: 1 }
+  return { folders: [board], notes: [], activeFolderId: board.id, topZ: 1, layout: 'free' }
 }
 
 // Storage is local only for now; the user asked to settle real storage later.
@@ -21,7 +31,8 @@ function loadNotes() {
       folders: saved.folders,
       notes: saved.notes ?? [],
       activeFolderId: saved.activeFolderId ?? saved.folders[0].id,
-      topZ: saved.topZ ?? 1
+      topZ: saved.topZ ?? 1,
+      layout: saved.layout === 'stacked' ? 'stacked' : 'free'
     }
   } catch {
     return initialState()
@@ -30,7 +41,7 @@ function loadNotes() {
 
 export default function NotesPage({ active }) {
   const [state, setState] = useState(loadNotes)
-  const { folders, notes, activeFolderId, topZ } = state
+  const { folders, notes, activeFolderId, topZ, layout } = state
   const boardRef = useRef(null)
   // null | 'new' | 'rename' — inline, so the page never depends on a blocking
   // window.prompt that some embedded browsers suppress.
@@ -105,6 +116,37 @@ export default function NotesPage({ active }) {
     })
   }
 
+  // Lay the folder's notes out in columns, each one collapsed to its top bar
+  // and first line; hovering a note brings the whole thing back.
+  const organise = () => {
+    const bounds = boardRef.current?.getBoundingClientRect()
+    const height = bounds?.height ?? 600
+    const perColumn = Math.max(1, Math.floor((height - STACK_GAP_X) / STACK_STEP_Y))
+    const columnWidth =
+      Math.max(NOTE_SIZE, ...visible.map((note) => noteSize(note).width)) + STACK_GAP_X
+
+    const placed = new Map(
+      visible.map((note, index) => [
+        note.id,
+        {
+          x: STACK_GAP_X + Math.floor(index / perColumn) * columnWidth,
+          y: STACK_GAP_X + (index % perColumn) * STACK_STEP_Y,
+          rotation: 0,
+          z: index + 1
+        }
+      ])
+    )
+
+    setState((current) => ({
+      ...current,
+      layout: 'stacked',
+      topZ: Math.max(current.topZ, placed.size),
+      notes: current.notes.map((note) =>
+        placed.has(note.id) ? { ...note, ...placed.get(note.id) } : note
+      )
+    }))
+  }
+
   const addFolder = (name) => {
     const trimmed = name.trim()
     if (!trimmed) return
@@ -145,7 +187,11 @@ export default function NotesPage({ active }) {
   // Files are named after the timestamp: the note's creation time for a single
   // note, the moment of export for a whole board.
   const exportBoard = () => {
-    exportNotesToPng(visible, `${stampFilename()}.png`)
+    exportNotesToPng(visible, `${stampFilename()}.png`, layout === 'stacked' ? STACK_PEEK : null)
+  }
+
+  const exportDoc = () => {
+    exportNotesToDoc(visible, `${stampFilename()}.doc`, activeFolder.name)
   }
 
   const exportNote = (note) => {
@@ -183,7 +229,27 @@ export default function NotesPage({ active }) {
             </button>
           )}
           <button className="ghost small" onClick={exportBoard} disabled={visible.length === 0}>
-            Save board as PNG
+            Save as PNG
+          </button>
+          <button
+            className="ghost small"
+            onClick={exportDoc}
+            disabled={visible.length === 0}
+            title="Compile every note in this folder into one Word document"
+          >
+            Save as Word
+          </button>
+          <button
+            className="ghost small"
+            onClick={() => (layout === 'stacked' ? setState((c) => ({ ...c, layout: 'free' })) : organise())}
+            disabled={visible.length === 0 && layout !== 'stacked'}
+            title={
+              layout === 'stacked'
+                ? 'Show every note in full again'
+                : 'Arrange the notes in columns, collapsed to their first line'
+            }
+          >
+            {layout === 'stacked' ? 'Expand all' : 'Organise'}
           </button>
           <button className="primary small" onClick={addNote}>
             + New note
@@ -233,13 +299,16 @@ export default function NotesPage({ active }) {
             onDelete={deleteNote}
             onLift={liftNote}
             onExport={exportNote}
+            stacked={layout === 'stacked'}
           />
         ))}
       </div>
 
       <p className="notes-hint">
-        Drag a note by its top bar and resize it from the bottom-right corner — or focus either
-        and use the arrow keys. Notes are kept in this browser for now.
+        {layout === 'stacked'
+          ? 'Hover a note to read it in full. “Expand all” goes back to the open board.'
+          : 'Drag a note by its top bar and resize it from the bottom-right corner — or focus either and use the arrow keys.'}{' '}
+        Notes are kept in this browser for now.
       </p>
     </main>
   )

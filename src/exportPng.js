@@ -28,10 +28,12 @@ function wrap(ctx, text, maxWidth) {
   return lines
 }
 
-function drawNote(ctx, note, originX, originY) {
+function drawNote(ctx, note, originX, originY, collapsedHeight) {
   const x = note.x - originX
   const y = note.y - originY
-  const { width, height } = noteSize(note)
+  const full = noteSize(note)
+  const width = full.width
+  const height = collapsedHeight ?? full.height
 
   ctx.save()
   ctx.translate(x + width / 2, y + height / 2)
@@ -83,7 +85,7 @@ function download(canvas, filename) {
 
 // Notes are drawn onto a canvas directly rather than screenshotting the DOM, so
 // the export needs no extra dependency and always looks the same.
-export function exportNotesToPng(notes, filename) {
+export function exportNotesToPng(notes, filename, collapsedHeight = null) {
   if (notes.length === 0) return false
 
   // Rotation lets a note poke outside its box; the slop covers that.
@@ -91,7 +93,7 @@ export function exportNotesToPng(notes, filename) {
   const minX = Math.min(...notes.map((note) => note.x)) - slop
   const minY = Math.min(...notes.map((note) => note.y)) - slop
   const maxX = Math.max(...notes.map((note) => note.x + noteSize(note).width)) + slop
-  const maxY = Math.max(...notes.map((note) => note.y + noteSize(note).height)) + slop
+  const maxY = Math.max(...notes.map((note) => note.y + (collapsedHeight ?? noteSize(note).height))) + slop
 
   const scale = window.devicePixelRatio > 1 ? 2 : 1
   const width = maxX - minX + PADDING * 2
@@ -106,8 +108,11 @@ export function exportNotesToPng(notes, filename) {
   ctx.fillStyle = BOARD_BG
   ctx.fillRect(0, 0, width, height)
 
-  for (const note of notes) {
-    drawNote(ctx, note, minX - PADDING, minY - PADDING)
+  // In a stacked layout the later notes cover the earlier ones, exactly as on
+  // the board, so they are drawn in the same order.
+  const ordered = [...notes].sort((a, b) => (a.z ?? 0) - (b.z ?? 0))
+  for (const note of ordered) {
+    drawNote(ctx, note, minX - PADDING, minY - PADDING, collapsedHeight)
   }
 
   download(canvas, filename)
