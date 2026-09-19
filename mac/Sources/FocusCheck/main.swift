@@ -36,6 +36,8 @@ print("\nSession log")
 let folder = URL(fileURLWithPath: NSTemporaryDirectory())
     .appendingPathComponent("focus-check-\(UUID().uuidString)")
 DataFolder.setURL(folder)
+// The app only touches disk once the folder question has been answered.
+DataFolder.markChosen()
 defer {
     DataFolder.setURL(nil)
     try? FileManager.default.removeItem(at: folder)
@@ -97,26 +99,47 @@ check("hours and minutes", Statistics.format(seconds: 5400) == "1h 30m")
 print("\nNotes: a document round trip")
 let sample = "Shipping plan\nDraft the release notes\n\nThen tag it, <b>carefully</b> & twice"
 let created = date("2026-09-19 15:50:44")
-let doc = NoteDocument.html(text: sample, createdAt: created)
+let sampleNote = Note(id: NoteDocument.stamp(for: created), createdAt: created, text: sample)
+let doc = NoteDocument.board(notes: [sampleNote], name: "Board")
 
-check("the first line becomes the heading", doc.contains("<h1>Shipping plan</h1>"))
-check("the timestamp is written", doc.contains("class=\"stamp\""))
+check("the board is titled after itself", doc.contains("<h1>Board</h1>"))
+check("the first line becomes the section heading", doc.contains("<h2>Shipping plan</h2>"))
+check("the stamp is written", doc.contains("<p class=\"stamp\">2026-09-19 15:50:44</p>"))
 check("angle brackets are escaped", doc.contains("&lt;b&gt;carefully&lt;/b&gt;"))
 check("an ampersand is escaped", doc.contains("&amp; twice"))
-check("text survives the round trip", NoteDocument.text(fromHTML: doc) == sample)
 
-let empty = NoteDocument.html(text: "", createdAt: created)
-check("an empty note gets a placeholder heading", empty.contains("<h1>Untitled note</h1>"))
-check("an empty note reads back as its heading", NoteDocument.text(fromHTML: empty) == "Untitled note")
+let readBack = NoteDocument.notes(fromHTML: doc)
+check("one section reads back as one note", readBack.count == 1)
+check("text survives the round trip", readBack.first?.text == sample)
+check("the identity survives the round trip", readBack.first?.id == sampleNote.id)
+check("the creation time survives the round trip", readBack.first?.createdAt == created)
 
-check(
-    "a filename carries the creation time",
-    NoteDocument.date(fromFilename: "2026-09-19_15-50-44.doc") == created
-)
-check(
-    "a de-duplicated filename still carries it",
-    NoteDocument.date(fromFilename: "2026-09-19_15-50-44-2.doc") == created
-)
+let second = Note(id: NoteDocument.stamp(for: created.addingTimeInterval(60)),
+                  createdAt: created.addingTimeInterval(60), text: "Second note\nwith a line")
+let two = NoteDocument.board(notes: [second, sampleNote], name: "Board")
+let bothBack = NoteDocument.notes(fromHTML: two)
+check("two notes make two sections", two.components(separatedBy: "<h2>").count == 3)
+check("sections are separated by a rule", two.contains("<hr>"))
+check("both notes read back", bothBack.count == 2)
+check("they come back oldest first", bothBack.first?.id == sampleNote.id)
+
+let empty = NoteDocument.board(notes: [Note(id: "x", createdAt: created, text: "")], name: "Board")
+check("an empty note gets a placeholder heading", empty.contains("<h2>Untitled note</h2>"))
+check("an empty note reads back as its heading", NoteDocument.notes(fromHTML: empty).first?.text == "Untitled note")
+
+// A section someone typed into Word by hand has no stamp, and must not vanish.
+let handwritten = """
+<html><body><h1>Board</h1>
+<h2>Typed in Word</h2><p>a thought</p>
+</body></html>
+"""
+let rescued = NoteDocument.notes(fromHTML: handwritten, fallbackDate: created)
+check("a section without a stamp is still read", rescued.count == 1)
+check("and it keeps its text", rescued.first?.text == "Typed in Word\na thought")
+check("and it is given the fallback date", rescued.first?.createdAt == created)
+
+check("a stamp parses back to its date", NoteDocument.date(fromStamp: "2026-09-19 15:50:44") == created)
+check("a de-duplicated stamp still parses", NoteDocument.date(fromStamp: "2026-09-19 15:50:44 (2)") == created)
 
 print("\nNotes: the board")
 let notes = NotesStore()
@@ -132,51 +155,78 @@ first.color = "mint"
 notes.update(first, writeText: true)
 notes.flush()
 
-let folderURL = notes.url(forFolder: notes.selectedFolder)
-check("the note is a file on disk", FileManager.default.fileExists(atPath: folderURL.appendingPathComponent(first.id).path))
-check("the file is a .doc", first.id.hasSuffix(".doc"))
-check("a layout file is written", FileManager.default.fileExists(atPath: folderURL.appendingPathComponent("board.json").path))
+let boardDoc = notes.documentURL(forFolder: notes.selectedFolder)
+check("the board is one document on disk", FileManager.default.fileExists(atPath: boardDoc.path))
+check("the document is a .doc", boardDoc.lastPathComponent == "Board.doc")
+check("a layout file sits beside it", FileManager.default.fileExists(atPath: notes.layoutURL(forFolder: "Board").path))
 
 let reopened = NotesStore()
 check("the note comes back", reopened.notes.count == 1)
 check("its text comes back", reopened.notes.first?.text == "Shipping plan\nDraft the release notes")
 check("its position comes back", reopened.notes.first?.x == 120)
 check("its colour comes back", reopened.notes.first?.color == "mint")
-check("its creation time comes back", reopened.notes.first?.createdAt == NoteDocument.date(fromFilename: first.id))
+check("its creation time comes back", reopened.notes.first?.id == first.id)
 check("its title is the first line", reopened.notes.first?.title == "Shipping plan")
 
 reopened.addFolder("Reading")
-check("a new folder is created", reopened.folders.contains("Reading"))
-check("switching folder clears the board", reopened.notes.isEmpty)
-check("the folder is a real directory", FileManager.default.fileExists(atPath: reopened.url(forFolder: "Reading").path))
+check("a new board is created", reopened.folders.contains("Reading"))
+check("switching board clears the canvas", reopened.notes.isEmpty)
+check("the new board has its own document",
+      FileManager.default.fileExists(atPath: reopened.documentURL(forFolder: "Reading").path))
 
 reopened.selectedFolder = "Board"
 check("switching back brings the notes with it", reopened.notes.count == 1)
 
 _ = reopened.add()
 check("a second note lands on the board", reopened.notes.count == 2)
-check("the two notes have different filenames", reopened.notes[0].id != reopened.notes[1].id)
+check("the two notes have different identities", reopened.notes[0].id != reopened.notes[1].id)
+reopened.flush()
+check(
+    "both live in the one document",
+    ((try? String(contentsOf: boardDoc, encoding: .utf8)) ?? "").components(separatedBy: "<h2>").count == 3
+)
 
 reopened.organise(boardHeight: 600)
 check("organising stacks the board", reopened.isStacked)
 check("organised notes line up in a column", reopened.notes[0].x == reopened.notes[1].x)
 check("organised notes are spaced apart", reopened.notes[1].y > reopened.notes[0].y)
 
-let compiled = reopened.compileFolder()
-check("compiling writes a document", compiled != nil)
-if let compiled, let text = try? String(contentsOf: compiled, encoding: .utf8) {
-    check("the compilation is titled after the folder", text.contains("<h1>Board</h1>"))
-    check("it holds a section per note", text.components(separatedBy: "<h2>").count == 3)
-    check("sections are separated by a rule", text.contains("<hr>"))
-}
-
 let toTrash = reopened.notes[1]
 reopened.trash(toTrash)
-check("trashing removes the note from the board", reopened.notes.count == 1)
+check("removing a note takes it off the board", reopened.notes.count == 1)
 check(
-    "trashing removes its file",
-    !FileManager.default.fileExists(atPath: folderURL.appendingPathComponent(toTrash.id).path)
+    "and out of the document",
+    !((try? String(contentsOf: boardDoc, encoding: .utf8)) ?? "").contains(toTrash.id)
 )
+check("but the document itself stays", FileManager.default.fileExists(atPath: boardDoc.path))
+
+print("\nNotes: folders from the old layout")
+do {
+    let manager = FileManager.default
+    let legacy = DataFolder.notesFolder.appendingPathComponent("Archive", isDirectory: true)
+    try? manager.createDirectory(at: legacy, withIntermediateDirectories: true)
+    let oldNote = """
+    <html><head><style>x</style></head><body><h1>Old note</h1>
+    <p class="stamp">Saturday, 19 September 2026 at 15:50</p><p>still here</p></body></html>
+    """
+    try? oldNote.write(to: legacy.appendingPathComponent("2026-09-19_15-50-44.doc"),
+                       atomically: true, encoding: .utf8)
+    try? #"{"2026-09-19_15-50-44.doc":{"x":40,"y":60,"width":240,"height":240,"color":"mint","z":1}}"#
+        .write(to: legacy.appendingPathComponent("board.json"), atomically: true, encoding: .utf8)
+
+    let migrated = NotesStore()
+    check("the old folder becomes a board", migrated.folders.contains("Archive"))
+    migrated.selectedFolder = "Archive"
+    check("its note is carried across", migrated.notes.count == 1)
+    check("with its text", migrated.notes.first?.text == "Old note\nstill here")
+    check("and its place on the board", migrated.notes.first?.x == 40)
+    check("the old folder is left alone", manager.fileExists(atPath: legacy.path))
+
+    // Migrating twice would overwrite the document that was just made.
+    let again = NotesStore()
+    again.selectedFolder = "Archive"
+    check("a second launch does not re-migrate", again.notes.count == 1)
+}
 
 print("\nMoving the data folder")
 do {

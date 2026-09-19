@@ -1,21 +1,28 @@
 import Foundation
 
-/// Reads and writes a note as a Word document.
+/// Reads and writes a board as a single Word document.
 ///
-/// Word opens HTML with a .doc extension as a document, which keeps the app free of
-/// a .docx zip writer and leaves the file readable in any text editor. The app can
-/// read back what it wrote exactly; if Word rewrites a file, the text is still
-/// recovered, though its formatting is not.
+/// A board is one document with a section per note, so what you open in Word is
+/// the board itself rather than a folder of fragments. Word opens HTML with a
+/// .doc extension as a document, which keeps the app free of a .docx zip writer
+/// and leaves the file readable in any text editor. The app reads back exactly
+/// what it wrote; if Word rewrites the file, the text and the section stamps are
+/// still recovered, though the formatting is not.
 public enum NoteDocument {
     public static let fileExtension = "doc"
 
+    /// The stamp is both a note's identity and its creation time, printed in the
+    /// document so it survives a round trip through Word. It is deliberately
+    /// locale-free — a Mac set to another language must still read these back.
     public static func stamp(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: date)
+        formatter(for: "yyyy-MM-dd HH:mm:ss").string(from: date)
     }
 
+    public static func date(fromStamp stamp: String) -> Date? {
+        formatter(for: "yyyy-MM-dd HH:mm:ss").date(from: String(stamp.prefix(19)))
+    }
+
+    /// A stamp for reading, not for storing — shown on the card itself.
     public static func longStamp(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .full
@@ -23,73 +30,51 @@ public enum NoteDocument {
         return formatter.string(from: date)
     }
 
-    /// Parses a note's creation time back out of its filename, which is where it is
-    /// recorded — the filesystem's own dates move when a file is copied.
-    public static func date(fromFilename name: String) -> Date? {
-        let base = (name as NSString).deletingPathExtension
+    /// A stamp that can also be a filename.
+    public static func fileStamp(for date: Date) -> String {
+        formatter(for: "yyyy-MM-dd_HH-mm-ss").string(from: date)
+    }
+
+    private static func formatter(for format: String) -> DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        formatter.dateFormat = format
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.date(from: String(base.prefix(19)))
+        return formatter
     }
 
     // MARK: - Writing
 
-    public static func html(text: String, createdAt: Date, title: String? = nil) -> String {
-        let heading = title ?? firstLine(of: text)
-        return """
-        <!DOCTYPE html>
-        <html><head><meta charset="utf-8"><title>\(escape(heading))</title>
-        <style>
-        body { font-family: Calibri, sans-serif; font-size: 11pt; }
-        h1 { font-size: 16pt; margin: 0 0 4pt; }
-        .stamp { color: #666666; font-size: 9pt; margin: 0 0 12pt; }
-        </style></head>
-        <body>
-        <h1>\(escape(heading))</h1>
-        <p class="stamp">\(escape(longStamp(for: createdAt)))</p>
-        \(body(of: text))
-        </body></html>
-        """
-    }
-
-    /// Every note in a folder, oldest first, separated by horizontal rules.
-    public static func compiled(notes: [Note], folder: String) -> String {
-        let ordered = notes.sorted { $0.createdAt < $1.createdAt }
-        let sections = ordered.map { note -> String in
+    /// The whole board, oldest note first, separated by horizontal rules.
+    public static func board(notes: [Note], name: String) -> String {
+        let sections = notes.sorted { $0.createdAt < $1.createdAt }.map { note in
             """
             <h2>\(escape(note.title))</h2>
-            <p class="stamp">\(escape(longStamp(for: note.createdAt)))</p>
-            \(body(of: note.text, skippingFirstLine: true))
+            <p class="stamp">\(escape(note.id))</p>
+            \(body(of: note.text))
             """
         }
 
         return """
         <!DOCTYPE html>
-        <html><head><meta charset="utf-8"><title>\(escape(folder))</title>
+        <html><head><meta charset="utf-8"><title>\(escape(name))</title>
         <style>
         body { font-family: Calibri, sans-serif; font-size: 11pt; }
-        h1 { font-size: 20pt; }
+        h1 { font-size: 20pt; margin: 0 0 16pt; }
         h2 { font-size: 14pt; margin: 0 0 4pt; }
         .stamp { color: #666666; font-size: 9pt; margin: 0 0 12pt; }
         hr { border: 0; border-top: 1px solid #cccccc; margin: 24pt 0; }
         </style></head>
         <body>
-        <h1>\(escape(folder))</h1>
+        <h1>\(escape(name))</h1>
         \(sections.joined(separator: "\n<hr>\n"))
         </body></html>
         """
     }
 
-    private static func firstLine(of text: String) -> String {
-        let first = text.split(separator: "\n", omittingEmptySubsequences: false).first.map(String.init) ?? ""
-        let trimmed = first.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? "Untitled note" : trimmed
-    }
-
-    private static func body(of text: String, skippingFirstLine: Bool = true) -> String {
+    private static func body(of text: String) -> String {
         var lines = text.components(separatedBy: "\n")
-        if skippingFirstLine, !lines.isEmpty { lines.removeFirst() }
+        // The first line is the heading already, so it is not repeated here.
+        if !lines.isEmpty { lines.removeFirst() }
         guard !lines.isEmpty else { return "" }
         // A blank line still needs a paragraph, or Word closes the gap up.
         return lines
@@ -106,42 +91,95 @@ public enum NoteDocument {
 
     // MARK: - Reading
 
-    /// Recovers a note's text. `<h1>` is the first line, the timestamp paragraph is
-    /// dropped, and the remaining paragraphs are the rest.
-    public static func text(fromHTML html: String) -> String {
+    /// One note recovered from a section of the document.
+    public struct Parsed {
+        public var id: String
+        public var createdAt: Date
+        public var text: String
+
+        public init(id: String, createdAt: Date, text: String) {
+            self.id = id
+            self.createdAt = createdAt
+            self.text = text
+        }
+    }
+
+    /// Splits a board document back into its notes. A section whose stamp is
+    /// missing or unreadable — someone typed a new section into Word, say — is
+    /// still kept, and is given the file's own date rather than being dropped.
+    ///
+    /// `titleTag` is `h2` in a board document; the folder-per-board layout this
+    /// replaced used `h1`, and migrating those reads them with `h1`.
+    public static func notes(
+        fromHTML html: String,
+        fallbackDate: Date = Date(),
+        titleTag: String = "h2"
+    ) -> [Parsed] {
         var source = html
         for tag in ["head", "style", "script"] {
             source = remove(tag: tag, from: source)
         }
 
-        var lines: [String] = []
-        for (tag, content) in blocks(in: source) {
-            let value = unescape(strip(content)).replacingOccurrences(of: "\u{00a0}", with: "")
-            if tag == "h1" {
-                lines.insert(value, at: 0)
-            } else if tag == "p" {
-                // The stamp paragraph is generated, not typed, so it is not text.
-                if lines.count == 1, isStamp(content) { continue }
-                lines.append(value)
+        var results: [Parsed] = []
+        var used = Set<String>()
+
+        for section in split(source) {
+            var lines: [String] = []
+            var stamp: String?
+
+            for (tag, attributes, content) in blocks(in: section) {
+                let value = unescape(strip(content)).replacingOccurrences(of: "\u{00a0}", with: "")
+                switch tag {
+                case titleTag:
+                    lines.insert(value, at: 0)
+                case "h1", "h2":
+                    continue // the board's own name
+                case "p" where attributes.contains("class=\"stamp\"") && stamp == nil:
+                    stamp = value.trimmingCharacters(in: .whitespaces)
+                default:
+                    lines.append(value)
+                }
             }
+
+            while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty {
+                lines.removeLast()
+            }
+            guard !lines.isEmpty || stamp != nil else { continue }
+
+            let created = stamp.flatMap(date(fromStamp:)) ?? fallbackDate
+            var id = stamp.flatMap { date(fromStamp: $0) != nil ? $0 : nil } ?? self.stamp(for: created)
+            var attempt = 2
+            // Two sections cannot share an identity, or the board file would only
+            // remember where one of them sits.
+            while used.contains(id) {
+                id = "\(self.stamp(for: created)) (\(attempt))"
+                attempt += 1
+            }
+            used.insert(id)
+
+            results.append(Parsed(id: id, createdAt: created, text: lines.joined(separator: "\n")))
         }
 
-        while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty {
-            lines.removeLast()
-        }
-        return lines.joined(separator: "\n")
+        return results
     }
 
-    private static func isStamp(_ content: String) -> Bool {
-        content.range(of: "class=\"stamp\"") != nil
+    /// The document as sections: everything between the horizontal rules.
+    private static func split(_ html: String) -> [String] {
+        html.replacingOccurrences(
+            of: "<hr[^>]*>",
+            with: "\u{0001}",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        .components(separatedBy: "\u{0001}")
     }
 
-    private static func blocks(in html: String) -> [(String, String)] {
-        var results: [(String, String)] = []
-        let pattern = "<(h1|p)([^>]*)>(.*?)</\\1>"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) else {
-            return results
-        }
+    private static func blocks(in html: String) -> [(String, String, String)] {
+        var results: [(String, String, String)] = []
+        let pattern = "<(h1|h2|p)([^>]*)>(.*?)</\\1>"
+        guard let regex = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.dotMatchesLineSeparators, .caseInsensitive]
+        ) else { return results }
 
         let range = NSRange(html.startIndex..., in: html)
         for match in regex.matches(in: html, range: range) {
@@ -150,8 +188,11 @@ public enum NoteDocument {
                 let attributeRange = Range(match.range(at: 2), in: html),
                 let contentRange = Range(match.range(at: 3), in: html)
             else { continue }
-            let tag = String(html[tagRange]).lowercased()
-            results.append((tag, String(html[attributeRange]) + ">" + String(html[contentRange])))
+            results.append((
+                String(html[tagRange]).lowercased(),
+                String(html[attributeRange]),
+                String(html[contentRange])
+            ))
         }
         return results
     }
@@ -170,7 +211,6 @@ public enum NoteDocument {
 
     private static func strip(_ html: String) -> String {
         var text = html
-        if let cut = text.firstIndex(of: ">") { text = String(text[text.index(after: cut)...]) }
         text = text.replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
         text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         return text

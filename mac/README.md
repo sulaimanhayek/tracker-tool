@@ -39,9 +39,9 @@ keep in step.
   session is recorded against.
 - **Insights** — daily, weekly, monthly and yearly totals, a chart of recent
   periods, and a breakdown by theme. All of it is computed from the log on the fly.
-- **Notes** — a board of draggable, resizable coloured sticky notes in folders.
-  Every note is its own Word document on disk, and a folder can be compiled into a
-  single document.
+- **Notes** — boards of draggable, resizable coloured sticky notes. Each board is
+  a single Word document, a section per note, so what you open in Word is the
+  board itself.
 
 ## The data
 
@@ -50,11 +50,14 @@ keep in step.
   sessions.csv     append-only, one row per focus session
   themes.json      the list of theme names
   notes/
-    Board/
-      2026-09-19_15-50-44.doc    one note
-      board.json                 where the notes sit
-    Board 2026-09-19_16-02-10.doc   a compiled folder
+    Board.doc      one board: every note on it, a section each
+    Board.json     where those notes sit on the board
 ```
+
+The app asks where this folder should go the first time it runs, and nothing is
+written until you answer. Change it later from **Insights → Data folder** or
+**File → Change Data Folder…**; you choose whether existing data comes along, and
+a file already present at the destination is never overwritten.
 
 `sessions.csv` looks like this:
 
@@ -81,24 +84,32 @@ Rules it follows, so the file stays trustworthy:
 
 ### Notes
 
-A note is a Word document named after the moment it was created, so the filename is
-the record of when you wrote it — file dates move when a file is copied. Open one in
-Word, Pages or TextEdit; the app reads its own format back exactly, and if Word
-rewrites a file the text is still recovered, though its formatting is not.
+A board is one Word document — `Board.doc` — with a section per note: a heading
+taken from the note's first line, a timestamp, then the rest. Open it in Word,
+Pages or TextEdit and you are reading the whole board in order. The timestamp is
+also the note's identity, printed in the document rather than kept in a filename,
+so it survives Word rewriting the file; the app reads its own format back exactly,
+and if Word reformats it the text and the section stamps still come through.
+
+Add a section in Word by hand and it appears on the board on the next reload, even
+without a stamp — it is given one rather than dropped.
 
 Where a note sits, how big it is and what colour it is are furniture rather than
-content, so they live apart in `board.json`. Delete that file and you lose an
-arrangement, never a word. Drop a `.doc` into a folder by hand and it appears on the
-board on the next reload.
+content, so they live apart in `Board.json`. Delete that file and you lose an
+arrangement, never a word.
 
-Notes and folders you remove go to the Trash rather than being deleted, because they
-are documents.
+Removing a note rewrites the document without it. A board you remove goes to the
+Trash rather than being deleted, because it is a document. A board left over from
+the older layout — a folder of one document per note — is folded into a single
+document the first time it is seen, and the old folder is left exactly where it is.
 
 ### Working with the folder
 
-Use *Reveal data folder* to open it in Finder, and *Reload from disk* after editing
-it by hand. To keep the files somewhere else, the path lives in the `dataFolderPath`
-default.
+The app asks where the folder should live on first run. Change it afterwards from
+**Insights → Data folder** or **File → Change Data Folder…**, with a checkbox for
+whether the existing data moves with it; a file already at the destination is kept
+as it is rather than overwritten. *Reveal data folder* opens it in Finder, and
+*Reload from disk* picks up edits you made by hand.
 
 ## Layout
 
