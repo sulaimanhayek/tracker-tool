@@ -6,6 +6,7 @@ struct FocusApp: App {
     @StateObject private var log: SessionLog
     @StateObject private var themes: ThemeStore
     @StateObject private var timer: TimerModel
+    @StateObject private var notes = NotesStore()
 
     init() {
         DataFolder.ensureExists()
@@ -18,14 +19,17 @@ struct FocusApp: App {
 
     var body: some Scene {
         Window("Focus", id: "main") {
-            ContentView(timer: timer, log: log, themes: themes)
+            ContentView(timer: timer, log: log, themes: themes, notes: notes)
         }
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(after: .newItem) {
                 Button("Reveal Data Folder in Finder") { DataFolder.reveal() }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
-                Button("Reload Sessions from Disk") { log.load() }
+                Button("Reload from Disk") {
+                    log.load()
+                    notes.reload()
+                }
             }
         }
     }
