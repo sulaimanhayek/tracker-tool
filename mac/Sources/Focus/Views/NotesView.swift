@@ -101,6 +101,8 @@ struct NotesView: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            // Cards measure their drags against this, not against themselves.
+            .coordinateSpace(name: NoteCardView.boardSpace)
             .onAppear { boardSize = geometry.size }
             .onChange(of: geometry.size) { _, size in boardSize = size }
         }
