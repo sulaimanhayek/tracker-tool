@@ -178,6 +178,58 @@ check(
     !FileManager.default.fileExists(atPath: folderURL.appendingPathComponent(toTrash.id).path)
 )
 
+print("\nMoving the data folder")
+do {
+    let manager = FileManager.default
+    let old = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("focus-move-old-\(UUID().uuidString)")
+    let new = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("focus-move-new-\(UUID().uuidString)")
+    defer {
+        try? manager.removeItem(at: old)
+        try? manager.removeItem(at: new)
+        DataFolder.setURL(folder)
+    }
+
+    DataFolder.setURL(old)
+    DataFolder.ensureExists()
+    try? "keep me".write(to: DataFolder.sessionsFile, atomically: true, encoding: .utf8)
+    try? manager.createDirectory(at: DataFolder.notesFolder, withIntermediateDirectories: true)
+
+    let moved = try! DataFolder.relocate(to: new, movingExisting: true)
+    check("the app now points at the new folder", DataFolder.url.path == new.path)
+    check("the choice is remembered", DataFolder.isChosen)
+    check("the log came along", manager.fileExists(atPath: new.appendingPathComponent("sessions.csv").path))
+    check("the notes folder came along", manager.fileExists(atPath: new.appendingPathComponent("notes").path))
+    check("nothing is left behind", !manager.fileExists(atPath: old.appendingPathComponent("sessions.csv").path))
+    check("it reports what it moved", moved.moved.sorted() == ["notes", "sessions.csv"])
+
+    // A file already at the destination is never overwritten.
+    let third = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("focus-move-third-\(UUID().uuidString)")
+    defer { try? manager.removeItem(at: third) }
+    try? manager.createDirectory(at: third, withIntermediateDirectories: true)
+    try? "mine".write(to: third.appendingPathComponent("sessions.csv"), atomically: true, encoding: .utf8)
+    let second = try! DataFolder.relocate(to: third, movingExisting: true)
+    check("an existing file at the destination is kept", second.kept.contains("sessions.csv"))
+    check(
+        "and it keeps its own contents",
+        (try? String(contentsOf: third.appendingPathComponent("sessions.csv"), encoding: .utf8)) == "mine"
+    )
+    check(
+        "the one it could not move stays where it was",
+        manager.fileExists(atPath: new.appendingPathComponent("sessions.csv").path)
+    )
+
+    // Leaving the data behind is the other half of the choice.
+    let fresh = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("focus-move-fresh-\(UUID().uuidString)")
+    defer { try? manager.removeItem(at: fresh) }
+    try! DataFolder.relocate(to: fresh, movingExisting: false)
+    check("starting fresh creates the folder", manager.fileExists(atPath: fresh.path))
+    check("starting fresh brings nothing", (try! manager.contentsOfDirectory(atPath: fresh.path)).isEmpty)
+}
+
 print("")
 if failures == 0 {
     print("All checks passed.")

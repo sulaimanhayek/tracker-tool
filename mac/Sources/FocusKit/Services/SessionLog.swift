@@ -31,6 +31,12 @@ public final class SessionLog: ObservableObject {
 
     // MARK: - Reading
 
+    /// Surfaces a problem that happened outside the log itself, so the app has
+    /// one place to show errors.
+    public func report(_ message: String?) {
+        lastError = message
+    }
+
     public func load() {
         guard let text = try? String(contentsOf: DataFolder.sessionsFile, encoding: .utf8) else {
             sessions = []
