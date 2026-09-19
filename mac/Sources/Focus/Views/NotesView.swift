@@ -75,7 +75,12 @@ struct NotesView: View {
             .disabled(store.notes.isEmpty)
 
             Button("+ New note") {
-                withAnimation(.easeOut(duration: 0.22)) { _ = store.add() }
+                // A spring rather than a curve: the slight overshoot is what
+                // makes the note look pressed onto the board instead of pasted
+                // into the frame.
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.62)) {
+                    _ = store.add()
+                }
             }
                 .buttonStyle(.borderedProminent)
         }
@@ -101,9 +106,7 @@ struct NotesView: View {
 
                 ForEach(store.notes) { note in
                     NoteCardView(store: store, note: note, bounds: geometry.size)
-                        // A note arrives and leaves rather than blinking in and
-                        // out: it fades, and grows or shrinks a little as it does.
-                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                        .transition(.stickyNote)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))

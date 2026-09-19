@@ -130,6 +130,36 @@ struct NoteCardView: View {
     }
 }
 
+/// How a note arrives and leaves.
+///
+/// Arriving, it comes in small and slightly askew and settles square — the way a
+/// sticky note is pressed onto a board, rather than appearing in place. Leaving
+/// is quieter: a note being thrown away should not draw the eye on its way out.
+extension AnyTransition {
+    static var stickyNote: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: StickyNoteArrival(progress: 0),
+                identity: StickyNoteArrival(progress: 1)
+            ),
+            removal: .opacity.combined(with: .scale(scale: 0.94))
+        )
+    }
+}
+
+private struct StickyNoteArrival: ViewModifier {
+    /// 0 is the moment before it lands, 1 is settled.
+    let progress: Double
+
+    func body(content: Content) -> some View {
+        content
+            // Held by the top edge, where a real one would be pressed down.
+            .scaleEffect(0.84 + 0.16 * progress, anchor: .top)
+            .rotationEffect(.degrees(-4 * (1 - progress)), anchor: .top)
+            .opacity(progress)
+    }
+}
+
 /// The card itself: paper, text and controls. It knows nothing about dragging,
 /// which is what lets SwiftUI leave it alone while a drag is in flight.
 private struct NoteCardContent: View, Equatable {
