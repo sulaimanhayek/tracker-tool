@@ -18,7 +18,7 @@ struct NotesView: View {
         VStack(spacing: 12) {
             toolbar
             board
-            Text("Each note is a Word document in this folder. Drag by the top bar, resize from the corner.")
+            Text("This board is one Word document, a section per note. Drag by the top bar, resize from the corner.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -39,13 +39,14 @@ struct NotesView: View {
             .frame(maxWidth: 180)
 
             Menu {
-                Button("New folder…") { name = ""; editing = .new }
-                Button("Rename folder…") { name = store.selectedFolder; editing = .rename }
-                Button("Move folder to Trash") { store.trashFolder() }
+                Button("New board…") { name = ""; editing = .new }
+                Button("Rename board…") { name = store.selectedFolder; editing = .rename }
+                Button("Move board to Trash") { store.trashFolder() }
                     .disabled(store.folders.count < 2)
                 Divider()
-                Button("Reveal in Finder") {
-                    NSWorkspace.shared.activateFileViewerSelecting([store.url(forFolder: store.selectedFolder)])
+                Button("Reveal document in Finder") {
+                    store.flush()
+                    NSWorkspace.shared.activateFileViewerSelecting([store.documentURL(forFolder: store.selectedFolder)])
                 }
                 Button("Reload from disk") { store.reload() }
             } label: {
@@ -56,13 +57,13 @@ struct NotesView: View {
 
             Spacer()
 
-            Button("Save as Word") {
+            Button("Open in Word") {
                 if let file = store.compileFolder() {
-                    NSWorkspace.shared.activateFileViewerSelecting([file])
+                    NSWorkspace.shared.open(file)
                 }
             }
             .disabled(store.notes.isEmpty)
-            .help("Compile every note in this folder into one document")
+            .help("Open this board's Word document — every note on it, in one file")
 
             Button(store.isStacked ? "Expand all" : "Organise") {
                 if store.isStacked {
@@ -108,7 +109,7 @@ struct NotesView: View {
 
     private func folderSheet(_ edit: FolderEdit) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(edit == .new ? "New folder" : "Rename folder")
+            Text(edit == .new ? "New board" : "Rename board")
                 .font(.headline)
 
             TextField("Folder name", text: $name)
