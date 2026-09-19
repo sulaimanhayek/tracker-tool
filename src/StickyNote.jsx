@@ -9,7 +9,7 @@ import {
   noteSize
 } from './notes'
 
-export default function StickyNote({ note, folders, onChange, onDelete, onLift, onExport }) {
+export default function StickyNote({ note, folders, stacked, onChange, onDelete, onLift, onExport }) {
   const drag = useRef(null)
   const resize = useRef(null)
   const { width, height } = noteSize(note)
@@ -132,11 +132,11 @@ export default function StickyNote({ note, folders, onChange, onDelete, onLift, 
 
   return (
     <article
-      className="note"
+      className={stacked ? 'note stacked' : 'note'}
       style={{
         '--note-color': colorValue(note.color),
-        width: `${width}px`,
-        height: `${height}px`,
+        '--note-width': `${width}px`,
+        '--note-height': `${height}px`,
         transform: `translate(${note.x}px, ${note.y}px) rotate(${note.rotation}deg)`,
         zIndex: note.z
       }}

@@ -13,6 +13,11 @@ export const NOTE_INK = '#2c2820'
 
 export const NOTES_STORAGE_KEY = 'tracker-tool.notes.v1'
 
+// Collapsed height of a stacked note: its top bar plus the first line of text.
+export const STACK_PEEK = 62
+export const STACK_STEP_Y = 72
+export const STACK_GAP_X = 24
+
 export function colorValue(key) {
   return (NOTE_COLORS.find((color) => color.key === key) ?? NOTE_COLORS[0]).value
 }
