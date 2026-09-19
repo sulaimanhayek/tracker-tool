@@ -38,6 +38,12 @@ let folder = URL(fileURLWithPath: NSTemporaryDirectory())
 DataFolder.setURL(folder)
 // The app only touches disk once the folder question has been answered.
 DataFolder.markChosen()
+// The board the app was last on is remembered between launches, and these
+// checks are a launch like any other — without this, a run starts wherever the
+// previous run left off and the checks below are no longer deterministic.
+UserDefaults.standard.removeObject(forKey: "selectedNotesFolder")
+UserDefaults.standard.removeObject(forKey: "roundsDate")
+UserDefaults.standard.removeObject(forKey: "completedRoundsToday")
 defer {
     DataFolder.setURL(nil)
     try? FileManager.default.removeItem(at: folder)

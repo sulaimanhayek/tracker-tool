@@ -6,8 +6,13 @@ struct NoteCardView: View {
     let note: Note
     let bounds: CGSize
 
-    @State private var dragOrigin: CGPoint?
-    @State private var resizeOrigin: CGSize?
+    // A drag is held here rather than in the store: publishing every pointer
+    // event would rebuild every card on the board — each with a live text view
+    // inside it — which is what made dragging judder. The store hears about it
+    // once, when the note is dropped.
+    @State private var drag: CGSize = .zero
+    @State private var resize: CGSize = .zero
+    @State private var isDragging = false
     @State private var hovering = false
 
     /// Collapsed height on an organised board: the top bar plus the first line.
@@ -25,13 +30,13 @@ struct NoteCardView: View {
             if !isCollapsed { editor }
             footer
         }
-        .frame(width: note.width, height: isCollapsed ? peek : note.height, alignment: .top)
+        .frame(width: liveWidth, height: isCollapsed ? peek : liveHeight, alignment: .top)
         .background(paper)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .shadow(color: .black.opacity(isCollapsed ? 0.25 : 0.35), radius: hovering ? 12 : 7, y: 5)
         .overlay(alignment: .bottomTrailing) { if !isCollapsed { handle } }
-        .position(x: note.x + note.width / 2, y: note.y + (isCollapsed ? peek : note.height) / 2)
-        .zIndex(Double(hovering && store.isStacked ? 10_000 : note.z))
+        .position(x: liveX + liveWidth / 2, y: liveY + (isCollapsed ? peek : liveHeight) / 2)
+        .zIndex(Double(isDragging || (hovering && store.isStacked) ? 10_000 : note.z))
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.18), value: isCollapsed)
     }
@@ -54,7 +59,7 @@ struct NoteCardView: View {
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.black.opacity(0.65))
                     .lineLimit(1)
-                    .frame(maxWidth: note.width * 0.55, alignment: .trailing)
+                    .frame(maxWidth: liveWidth * 0.55, alignment: .trailing)
             }
 
             Button {
@@ -141,45 +146,59 @@ struct NoteCardView: View {
             .help("Drag to resize")
     }
 
+    // MARK: - Live geometry
+
+    // What is drawn while a gesture is in flight: the note's saved geometry plus
+    // the gesture so far, clamped the same way the committed value will be, so
+    // the card never jumps when it is dropped.
+    private var liveX: Double { clamp(note.x + drag.width, max: bounds.width - liveWidth) }
+    private var liveY: Double { clamp(note.y + drag.height, max: bounds.height - liveHeight) }
+
+    private var liveWidth: Double {
+        clamp(note.width + resize.width, min: Note.minimumSize.width, max: bounds.width - note.x)
+    }
+
+    private var liveHeight: Double {
+        clamp(note.height + resize.height, min: Note.minimumSize.height, max: bounds.height - note.y)
+    }
+
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 1)
             .onChanged { value in
-                if dragOrigin == nil {
-                    dragOrigin = CGPoint(x: note.x, y: note.y)
+                if !isDragging {
+                    isDragging = true
                     store.lift(note)
                 }
-                guard let origin = dragOrigin else { return }
+                drag = value.translation
+            }
+            .onEnded { _ in
                 var updated = note
                 // Clamped so a note can never be dragged off the board and lost.
-                updated.x = clamp(origin.x + value.translation.width, max: bounds.width - note.width)
-                updated.y = clamp(origin.y + value.translation.height, max: bounds.height - note.height)
+                updated.x = liveX
+                updated.y = liveY
                 store.update(updated, writeText: false)
+                drag = .zero
+                isDragging = false
             }
-            .onEnded { _ in dragOrigin = nil }
     }
 
     private var resizeGesture: some Gesture {
         DragGesture(minimumDistance: 1)
             .onChanged { value in
-                if resizeOrigin == nil {
-                    resizeOrigin = CGSize(width: note.width, height: note.height)
+                if !isDragging {
+                    isDragging = true
                     store.lift(note)
                 }
-                guard let origin = resizeOrigin else { return }
-                var updated = note
-                updated.width = clamp(
-                    origin.width + value.translation.width,
-                    min: Note.minimumSize.width,
-                    max: bounds.width - note.x
-                )
-                updated.height = clamp(
-                    origin.height + value.translation.height,
-                    min: Note.minimumSize.height,
-                    max: bounds.height - note.y
-                )
-                store.update(updated, writeText: false)
+                resize = value.translation
             }
-            .onEnded { _ in resizeOrigin = nil }
+            .onEnded { _ in
+                var updated = note
+                updated.width = liveWidth
+                updated.height = liveHeight
+                store.update(updated, writeText: false)
+                resize = .zero
+                isDragging = false
+            }
     }
 
     private func clamp(_ value: Double, min lower: Double = 0, max upper: Double) -> Double {
