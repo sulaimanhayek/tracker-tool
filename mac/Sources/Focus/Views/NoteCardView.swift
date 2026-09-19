@@ -185,7 +185,7 @@ private struct NoteCardContent: View, Equatable {
             }
 
             Button {
-                store.trash(note)
+                withAnimation(.easeIn(duration: 0.18)) { store.trash(note) }
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .bold))

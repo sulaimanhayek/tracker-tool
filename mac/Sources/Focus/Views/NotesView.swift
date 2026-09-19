@@ -74,7 +74,9 @@ struct NotesView: View {
             }
             .disabled(store.notes.isEmpty)
 
-            Button("+ New note") { _ = store.add() }
+            Button("+ New note") {
+                withAnimation(.easeOut(duration: 0.22)) { _ = store.add() }
+            }
                 .buttonStyle(.borderedProminent)
         }
     }
@@ -84,6 +86,7 @@ struct NotesView: View {
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(nsColor: .underPageBackgroundColor))
+                    .overlay { dots }
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
@@ -98,6 +101,9 @@ struct NotesView: View {
 
                 ForEach(store.notes) { note in
                     NoteCardView(store: store, note: note, bounds: geometry.size)
+                        // A note arrives and leaves rather than blinking in and
+                        // out: it fades, and grows or shrinks a little as it does.
+                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -107,6 +113,33 @@ struct NotesView: View {
             .onChange(of: geometry.size) { _, size in boardSize = size }
         }
         .frame(minHeight: 420)
+    }
+
+    /// The board's paper: a grid of dots, drawn once into a canvas rather than
+    /// as a view per dot.
+    private var dots: some View {
+        Canvas { context, size in
+            let spacing = 22.0
+            let diameter = 1.7
+            let colour = GraphicsContext.Shading.color(Color(nsColor: .tertiaryLabelColor))
+
+            var y = spacing
+            while y < size.height {
+                var x = spacing
+                while x < size.width {
+                    let dot = CGRect(
+                        x: x - diameter / 2,
+                        y: y - diameter / 2,
+                        width: diameter,
+                        height: diameter
+                    )
+                    context.fill(Path(ellipseIn: dot), with: colour)
+                    x += spacing
+                }
+                y += spacing
+            }
+        }
+        .allowsHitTesting(false)
     }
 
     private func folderSheet(_ edit: FolderEdit) -> some View {
