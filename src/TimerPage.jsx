@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Quote from './Quote.jsx'
 import TimerRing from './TimerRing.jsx'
 import Themes from './Themes.jsx'
 import Settings from './Settings.jsx'
@@ -122,8 +121,6 @@ export default function TimerPage({ active, mode, setMode, completedFocus, setCo
 
   return (
     <main className="main" hidden={!active}>
-      <Quote />
-
       <nav className="tabs" role="tablist">
         {MODE_ORDER.map((key) => (
           <button

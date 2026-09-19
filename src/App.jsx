@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import BackgroundPicker from './BackgroundPicker.jsx'
 import TimerPage from './TimerPage.jsx'
 import NotesPage from './NotesPage.jsx'
 import { useFullscreen } from './useFullscreen'
 import { useHashRoute } from './useHashRoute'
+import { BACKGROUND_STORAGE_KEY, backgroundByKey } from './backgrounds'
 
 const PAGES = [
   { route: 'timer', label: 'Timer' },
@@ -14,6 +16,26 @@ export default function App() {
   const fullscreen = useFullscreen()
   const [mode, setMode] = useState('focus')
   const [completedFocus, setCompletedFocus] = useState(0)
+  const [background, setBackground] = useState(() => {
+    try {
+      return localStorage.getItem(BACKGROUND_STORAGE_KEY) ?? 'midnight'
+    } catch {
+      return 'midnight'
+    }
+  })
+
+  // The tokens go on the root element so the body background follows too.
+  useEffect(() => {
+    const theme = backgroundByKey(background)
+    const root = document.documentElement
+    Object.entries(theme.vars).forEach(([name, value]) => root.style.setProperty(name, value))
+    root.style.colorScheme = theme.scheme
+    try {
+      localStorage.setItem(BACKGROUND_STORAGE_KEY, theme.key)
+    } catch {
+      // Storage can be unavailable (private mode); the colour still applies.
+    }
+  }, [background])
 
   const onNotes = route === 'notes'
 
@@ -56,6 +78,7 @@ export default function App() {
 
         <div className="topbar-right">
           {!onNotes && <span className="rounds">{completedFocus} focus sessions today</span>}
+          <BackgroundPicker value={background} onChange={setBackground} />
           <button
             className="icon-button"
             onClick={fullscreen.toggle}
