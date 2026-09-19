@@ -2,17 +2,32 @@ import FocusKit
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case timer, stats
+    case timer, notes, stats
 
     var id: String { rawValue }
-    var label: String { self == .timer ? "Timer" : "Insights" }
-    var symbol: String { self == .timer ? "timer" : "chart.bar" }
+
+    var label: String {
+        switch self {
+        case .timer: return "Timer"
+        case .notes: return "Notes"
+        case .stats: return "Insights"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .timer: return "timer"
+        case .notes: return "note.text"
+        case .stats: return "chart.bar"
+        }
+    }
 }
 
 struct ContentView: View {
     @ObservedObject var timer: TimerModel
     @ObservedObject var log: SessionLog
     @ObservedObject var themes: ThemeStore
+    @ObservedObject var notes: NotesStore
 
     @State private var page: Page = .timer
 
@@ -21,10 +36,11 @@ struct ContentView: View {
             // The timer keeps running whichever page is showing; only the view changes.
             switch page {
             case .timer: TimerView(timer: timer, themes: themes)
+            case .notes: NotesView(store: notes)
             case .stats: StatsView(log: log)
             }
 
-            if let error = log.lastError {
+            if let error = log.lastError ?? notes.lastError {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -41,9 +57,9 @@ struct ContentView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 200)
+                .frame(width: 260)
             }
         }
-        .frame(minWidth: 520, minHeight: 640)
+        .frame(minWidth: 720, minHeight: 680)
     }
 }
