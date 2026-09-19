@@ -29,7 +29,10 @@ struct ContentView: View {
     @ObservedObject var themes: ThemeStore
     @ObservedObject var notes: NotesStore
 
+    var onChangeFolder: (URL, Bool) -> Void
+
     @State private var page: Page = .timer
+    @State private var asking = !DataFolder.isChosen
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,7 +40,7 @@ struct ContentView: View {
             switch page {
             case .timer: TimerView(timer: timer, themes: themes)
             case .notes: NotesView(store: notes)
-            case .stats: StatsView(log: log)
+            case .stats: StatsView(log: log, onChangeFolder: onChangeFolder)
             }
 
             if let error = log.lastError ?? notes.lastError {
@@ -61,5 +64,13 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 720, minHeight: 680)
+        // Asked once, on the very first launch; the answer can be changed
+        // later from Insights.
+        .sheet(isPresented: $asking) {
+            WelcomeSheet { url, moveExisting in
+                onChangeFolder(url, moveExisting)
+                asking = false
+            }
+        }
     }
 }

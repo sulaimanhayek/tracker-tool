@@ -3,6 +3,7 @@ import SwiftUI
 
 struct StatsView: View {
     @ObservedObject var log: SessionLog
+    var onChangeFolder: (URL, Bool) -> Void
     @State private var grain: Grain = .day
 
     private let calendar = Calendar.current
@@ -23,9 +24,10 @@ struct StatsView: View {
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 12) {
-                Button("Reveal data folder") { DataFolder.reveal() }
-                Button("Reload from disk") { log.load() }
+            Divider()
+
+            HStack(alignment: .top) {
+                DataFolderSection(onChange: onChangeFolder)
                 Spacer()
                 Text("\(log.sessions.count) sessions logged")
                     .font(.caption)
