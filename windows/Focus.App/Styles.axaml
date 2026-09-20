@@ -1,0 +1,28 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="TextBlock.heading">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.caption">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Opacity" Value="0.65" />
+  </Style>
+  <Style Selector="Button.page">
+    <Setter Property="Padding" Value="14,6" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="Button.page.selected">
+    <Setter Property="Background" Value="#33808080" />
+  </Style>
+  <!-- A note's text sits straight on the paper: no box, no fill, no focus ring. -->
+  <Style Selector="TextBox.note /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.note">
+    <Setter Property="CaretBrush" Value="Black" />
+    <Setter Property="SelectionBrush" Value="#55000000" />
+  </Style>
+</Styles>
