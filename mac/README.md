@@ -43,6 +43,10 @@ keep in step.
   a single Word document, a section per note, so what you open in Word is the
   board itself.
 
+Sounds: a tick when a stretch starts and three short strikes when one ends, both
+system sounds so they match the Mac they play on. Turn them off with **File →
+Play Sounds**.
+
 ## The data
 
 ```

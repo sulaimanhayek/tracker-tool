@@ -7,6 +7,7 @@ struct FocusApp: App {
     @StateObject private var themes: ThemeStore
     @StateObject private var timer: TimerModel
     @StateObject private var notes = NotesStore()
+    @AppStorage("soundsEnabled") private var soundsEnabled = true
 
     init() {
         // Nothing is written until the folder question has been answered, so a
@@ -50,6 +51,7 @@ struct FocusApp: App {
                     themes.load()
                     notes.reload()
                 }
+                Toggle("Play Sounds", isOn: $soundsEnabled)
                 Button("Change Data Folder…") {
                     if let url = DataFolderPicker.run(prompt: "Use This Folder") {
                         changeFolder(to: url, movingExisting: true)
