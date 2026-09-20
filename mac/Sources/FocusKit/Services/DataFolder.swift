@@ -94,6 +94,42 @@ public enum DataFolder {
         return result
     }
 
+    /// One entry in the data folder, for showing it as a directory.
+    public struct Entry: Identifiable, Equatable {
+        public let name: String
+        public let isDirectory: Bool
+        public let children: [Entry]
+
+        public var id: String { name }
+    }
+
+    /// What is actually in the folder, a level deep, so the app can show the
+    /// files rather than describe them. Directories come first.
+    public static func listing(of folder: URL? = nil, depth: Int = 1) -> [Entry] {
+        let root = folder ?? url
+        let manager = FileManager.default
+        let names = ((try? manager.contentsOfDirectory(atPath: root.path)) ?? [])
+            .filter { !$0.hasPrefix(".") }
+
+        return names.map { name -> Entry in
+            var isDirectory: ObjCBool = false
+            let path = root.appendingPathComponent(name)
+            manager.fileExists(atPath: path.path, isDirectory: &isDirectory)
+            return Entry(
+                name: name,
+                isDirectory: isDirectory.boolValue,
+                children: isDirectory.boolValue && depth > 0
+                    ? listing(of: path, depth: depth - 1)
+                    : []
+            )
+        }
+        .sorted {
+            $0.isDirectory == $1.isDirectory
+                ? $0.name.localizedStandardCompare($1.name) == .orderedAscending
+                : $0.isDirectory
+        }
+    }
+
     public static func reveal() {
         ensureExists()
         NSWorkspace.shared.activateFileViewerSelecting([url])

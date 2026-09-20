@@ -28,6 +28,7 @@ struct ContentView: View {
     @ObservedObject var log: SessionLog
     @ObservedObject var themes: ThemeStore
     @ObservedObject var notes: NotesStore
+    @EnvironmentObject var backgrounds: BackgroundStore
 
     var onChangeFolder: (URL, Bool) -> Void
 
@@ -62,7 +63,18 @@ struct ContentView: View {
                 .labelsHidden()
                 .frame(width: 260)
             }
+
+            ToolbarItem(placement: .primaryAction) {
+                SettingsLink {
+                    Image(systemName: "gearshape")
+                }
+                .help("Settings — durations, background, data folder")
+            }
         }
+        // One palette for the whole app: the hue behind everything, and the
+        // light/dark scheme it belongs to, so system colours match it.
+        .background(Color(backgrounds.current.background))
+        .preferredColorScheme(backgrounds.current.isDark ? .dark : .light)
         .frame(minWidth: 720, minHeight: 680)
         // Asked once, on the very first launch; the answer can be changed
         // later from Insights.
