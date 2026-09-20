@@ -16,6 +16,18 @@ void Check(string name, bool condition)
 DateTime At(string text) =>
     DateTime.ParseExact(text, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 
+/// Where two documents first part company, so a failure says what changed
+/// rather than only that something did.
+string Difference(string actual, string expected)
+{
+    var at = 0;
+    while (at < actual.Length && at < expected.Length && actual[at] == expected[at]) at++;
+    string Around(string text) =>
+        text.Substring(Math.Max(0, at - 30), Math.Min(text.Length, at + 30) - Math.Max(0, at - 30))
+            .Replace("\r", "\\r").Replace("\n", "\\n");
+    return $"       at character {at}\n       got      {Around(actual)}\n       expected {Around(expected)}";
+}
+
 Console.WriteLine("CSV");
 Check("plain field is left alone", Csv.Escape("Deep work") == "Deep work");
 Check("comma forces quoting", Csv.Escape("Reading, writing") == "\"Reading, writing\"");
@@ -257,8 +269,12 @@ hr { border: 0; border-top: 1px solid #cccccc; margin: 24pt 0; }
 <p>Bread</p>
 </body></html>
 """;
-Check("a board renders exactly as the Mac app writes it",
-    NoteDocument.Board(new[] { macNote }, "Board & co") == expected);
+// This file may be checked out with CRLF on Windows; the contract is LF, and
+// the document the app writes is LF, so the fixture is read as LF too.
+expected = expected.Replace("\r\n", "\n");
+var rendered = NoteDocument.Board(new[] { macNote }, "Board & co");
+Check("a board renders exactly as the Mac app writes it", rendered == expected);
+if (rendered != expected) Console.WriteLine(Difference(rendered, expected));
 
 var backFromMac = NoteDocument.NotesFromHtml(expected);
 Check("and reads back from that document", backFromMac.Count == 1);

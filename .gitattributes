@@ -1,0 +1,5 @@
+# Two apps share a folder of documents, so the files that define that format
+# must not depend on which machine checked them out.
+* text=auto eol=lf
+*.png binary
+*.ico binary

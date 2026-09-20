@@ -54,7 +54,9 @@ public static class NoteDocument
         <h1>{{Escape(name)}}</h1>
         {{string.Join("\n<hr>\n", sections)}}
         </body></html>
-        """;
+        """.Replace("\r\n", "\n");
+        // Always LF, whatever this file was checked out as: the Mac app writes
+        // LF, and one folder has to serve both.
     }
 
     private static string Body(string text)
@@ -81,7 +83,8 @@ public static class NoteDocument
     public static List<Parsed> NotesFromHtml(string html, DateTime? fallbackDate = null, string titleTag = "h2")
     {
         var fallback = fallbackDate ?? DateTime.Now;
-        var source = html;
+        // A document that has been through Word on Windows comes back with CRLF.
+        var source = html.Replace("\r\n", "\n");
         foreach (var tag in new[] { "head", "style", "script" })
             source = Regex.Replace(source, $"<{tag}[^>]*>.*?</{tag}>", "",
                 RegexOptions.Singleline | RegexOptions.IgnoreCase);
