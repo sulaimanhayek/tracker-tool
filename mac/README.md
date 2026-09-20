@@ -31,7 +31,10 @@ keep in step.
 
 ## What it does
 
-- **Timer** — Focus (60 min), Short Break (5) and Long Break (15), each editable. A
+- **Settings** (⌘, or the gear in the toolbar) — how long each stretch runs, the
+  background, and where the data folder is, shown as the directory it is.
+- **Timer** — Focus (60 min), Short Break (5) and Long Break (15), each editable in
+  Settings. A
   long break is suggested after every 4 focus rounds. Time left is derived from a
   wall-clock deadline rather than counted down tick by tick, so a busy or sleeping
   Mac cannot make it drift.
@@ -42,6 +45,10 @@ keep in step.
 - **Notes** — boards of draggable, resizable coloured sticky notes. Each board is
   a single Word document, a section per note, so what you open in Word is the
   board itself.
+
+The background is one of six palettes shared with the web app — Midnight, Ink,
+Slate, Forest, Paper and Parchment — each a whole palette rather than a colour, so
+a light background still reads.
 
 Sounds: a tick when a stretch starts and three short strikes when one ends, both
 system sounds so they match the Mac they play on. Turn them off with **File →
@@ -59,7 +66,7 @@ Play Sounds**.
 ```
 
 The app asks where this folder should go the first time it runs, and nothing is
-written until you answer. Change it later from **Insights → Data folder** or
+written until you answer. Change it later from **Settings → Storage** or
 **File → Change Data Folder…**; you choose whether existing data comes along, and
 a file already present at the destination is never overwritten.
 
@@ -110,7 +117,7 @@ document the first time it is seen, and the old folder is left exactly where it 
 ### Working with the folder
 
 The app asks where the folder should live on first run. Change it afterwards from
-**Insights → Data folder** or **File → Change Data Folder…**, with a checkbox for
+**Settings → Storage** or **File → Change Data Folder…**, with a checkbox for
 whether the existing data moves with it; a file already at the destination is kept
 as it is rather than overwritten. *Reveal data folder* opens it in Finder, and
 *Reload from disk* picks up edits you made by hand.
@@ -120,13 +127,13 @@ as it is rather than overwritten. *Reveal data folder* opens it in Finder, and
 ```
 Sources/
   FocusKit/            No UI — safe to exercise on its own
-    Models/            TimerMode, Session, Grain, Note
+    Models/            TimerMode, Session, Grain, Note, Background
     Services/          DataFolder, CSV, SessionLog, ThemeStore, TimerModel,
                        Statistics, NoteDocument, NotesStore
   Focus/               The app
     FocusApp.swift     Entry point, wiring, menu commands
     Views/             ContentView, TimerView, RingView, StatsView,
-                       NotesView, NoteCardView, FlowLayout
+                       NotesView, NoteCardView, SettingsView, FlowLayout
   FocusCheck/          The checks
 Scripts/build-app.sh   Builds the .app bundle
 Resources/Info.plist   Bundle metadata
@@ -134,7 +141,7 @@ Resources/Info.plist   Bundle metadata
 
 ## Checks
 
-`swift run focus-check` runs 61 checks against a temporary data folder, covering CSV
+`swift run focus-check` runs 111 checks against a temporary data folder, covering CSV
 escaping and round-tripping, the session log's write-and-reload cycle, the bucketing
 arithmetic behind every figure the Insights page shows, and the notes board: a
 document's text surviving the trip to disk and back, layout and colour persisting,

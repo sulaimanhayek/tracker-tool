@@ -4,6 +4,7 @@ import SwiftUI
 
 struct NotesView: View {
     @ObservedObject var store: NotesStore
+    @EnvironmentObject var backgrounds: BackgroundStore
 
     @State private var editing: FolderEdit?
     @State private var name = ""
@@ -90,7 +91,7 @@ struct NotesView: View {
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(nsColor: .underPageBackgroundColor))
+                    .fill(Color(backgrounds.current.surface))
                     .overlay { dots }
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)

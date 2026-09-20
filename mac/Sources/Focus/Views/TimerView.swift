@@ -5,7 +5,6 @@ struct TimerView: View {
     @ObservedObject var timer: TimerModel
     @ObservedObject var themes: ThemeStore
 
-    @State private var showingDurations = false
     @State private var newTheme = ""
 
     var body: some View {
@@ -45,34 +44,16 @@ struct TimerView: View {
                 }
             }
 
+            // The durations themselves live in Settings, one screen away, so the
+            // timer page stays the timer.
+            SettingsLink {
+                Text("\(timer.durations[timer.mode] ?? timer.mode.defaultMinutes) min per \(timer.mode.label.lowercased()) — change…")
+            }
+            .buttonStyle(.link)
+            .font(.caption)
+
             themePicker
 
-            DisclosureGroup("Durations", isExpanded: $showingDurations) {
-                HStack(spacing: 16) {
-                    ForEach(TimerMode.allCases) { mode in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(mode.label)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Stepper(
-                                value: Binding(
-                                    get: { timer.durations[mode] ?? mode.defaultMinutes },
-                                    set: {
-                                        timer.durations[mode] = max(1, min(480, $0))
-                                        timer.applyDurationChange()
-                                    }
-                                ),
-                                in: 1...480
-                            ) {
-                                Text("\(timer.durations[mode] ?? mode.defaultMinutes) min")
-                                    .monospacedDigit()
-                            }
-                        }
-                    }
-                }
-                .padding(.top, 8)
-            }
-            .frame(maxWidth: 420)
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

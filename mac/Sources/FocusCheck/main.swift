@@ -44,6 +44,7 @@ DataFolder.markChosen()
 UserDefaults.standard.removeObject(forKey: "selectedNotesFolder")
 UserDefaults.standard.removeObject(forKey: "roundsDate")
 UserDefaults.standard.removeObject(forKey: "completedRoundsToday")
+UserDefaults.standard.removeObject(forKey: "background")
 defer {
     DataFolder.setURL(nil)
     try? FileManager.default.removeItem(at: folder)
@@ -295,6 +296,61 @@ do {
     try! DataFolder.relocate(to: fresh, movingExisting: false)
     check("starting fresh creates the folder", manager.fileExists(atPath: fresh.path))
     check("starting fresh brings nothing", (try! manager.contentsOfDirectory(atPath: fresh.path)).isEmpty)
+}
+
+print("\nBackgrounds")
+do {
+    check("all six palettes are offered", Background.all.count == 6)
+    check(
+        "every key is distinct",
+        Set(Background.all.map(\.key)).count == Background.all.count
+    )
+    check("midnight is the first", Background.all[0].key == "midnight")
+
+    // Hex parsing is the one place a typo would show as a wrong colour rather
+    // than a failure, so it is pinned.
+    let midnight = Background.named("midnight")
+    check("a hex channel reads back", Int((midnight.background.red * 255).rounded()) == 0x12)
+    check("and the middle one", Int((midnight.background.green * 255).rounded()) == 0x14)
+    check("and the last", Int((midnight.background.blue * 255).rounded()) == 0x1a)
+    check("white is white", RGB(hex: "#ffffff") == RGB(red: 1, green: 1, blue: 1))
+    check("a malformed value is black rather than a crash", RGB(hex: "nonsense").red == 0)
+
+    check("paper is a light palette", !Background.named("paper").isDark)
+    check("parchment too", !Background.named("parchment").isDark)
+    check("midnight is not", Background.named("midnight").isDark)
+    check("an unknown key falls back to the first", Background.named("zzz").key == "midnight")
+
+    let store = BackgroundStore()
+    check("a new install starts on midnight", store.selected == "midnight")
+    store.selected = "forest"
+    check("the choice is remembered", BackgroundStore().selected == "forest")
+    check("and the store hands back that palette", BackgroundStore().current.label == "Forest")
+    UserDefaults.standard.removeObject(forKey: "background")
+}
+
+print("\nThe data folder as a directory")
+do {
+    let manager = FileManager.default
+    let shown = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("focus-listing-\(UUID().uuidString)")
+    defer { try? manager.removeItem(at: shown) }
+    try! manager.createDirectory(at: shown.appendingPathComponent("notes"), withIntermediateDirectories: true)
+    try! "x".write(to: shown.appendingPathComponent("sessions.csv"), atomically: true, encoding: .utf8)
+    try! "x".write(to: shown.appendingPathComponent(".DS_Store"), atomically: true, encoding: .utf8)
+    try! "x".write(to: shown.appendingPathComponent("notes/Board.doc"), atomically: true, encoding: .utf8)
+
+    let entries = DataFolder.listing(of: shown)
+    check("the folder's own files are listed", entries.map(\.name) == ["notes", "sessions.csv"])
+    check("folders come first", entries[0].isDirectory)
+    check("a file is not called a folder", !entries[1].isDirectory)
+    check("dot files are left out", !entries.contains { $0.name.hasPrefix(".") })
+    check("a folder shows what is in it", entries[0].children.map(\.name) == ["Board.doc"])
+    check(
+        "but only a level deep",
+        DataFolder.listing(of: shown, depth: 0)[0].children.isEmpty
+    )
+    check("an empty folder lists nothing", DataFolder.listing(of: shown.appendingPathComponent("nowhere")).isEmpty)
 }
 
 print("")

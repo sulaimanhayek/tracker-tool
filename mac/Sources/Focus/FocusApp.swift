@@ -7,6 +7,7 @@ struct FocusApp: App {
     @StateObject private var themes: ThemeStore
     @StateObject private var timer: TimerModel
     @StateObject private var notes = NotesStore()
+    @StateObject private var backgrounds = BackgroundStore()
     @AppStorage("soundsEnabled") private var soundsEnabled = true
 
     init() {
@@ -40,6 +41,7 @@ struct FocusApp: App {
             ContentView(timer: timer, log: log, themes: themes, notes: notes) { url, moveExisting in
                 changeFolder(to: url, movingExisting: moveExisting)
             }
+            .environmentObject(backgrounds)
         }
         .windowResizability(.contentMinSize)
         .commands {
@@ -57,6 +59,13 @@ struct FocusApp: App {
                         changeFolder(to: url, movingExisting: true)
                     }
                 }
+            }
+        }
+
+        // ⌘, and Focus → Settings…, plus the gear in the toolbar.
+        Settings {
+            SettingsView(timer: timer, backgrounds: backgrounds) { url, moveExisting in
+                changeFolder(to: url, movingExisting: moveExisting)
             }
         }
     }
