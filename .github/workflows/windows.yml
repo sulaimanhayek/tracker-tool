@@ -1,0 +1,72 @@
+name: Windows app
+
+# Neither of us has a Windows machine, so this is where the app is actually
+# built and run on Windows: the checks execute here for real, against a real
+# Recycle Bin and a real %APPDATA%.
+on:
+  push:
+    branches: [main, dev]
+    paths: ['windows/**', '.github/workflows/windows.yml']
+    tags: ['v*']
+  pull_request:
+    paths: ['windows/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Checks
+        working-directory: windows
+        run: dotnet run --project Focus.Check -c Release
+
+      # One file, no .NET to install first: the whole runtime is inside it.
+      - name: Publish portable executable
+        working-directory: windows
+        run: >
+          dotnet publish Focus.App/Focus.App.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -o publish
+
+      - name: Build the installer
+        working-directory: windows
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc Installer\Focus.iss
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Focus-windows
+          path: |
+            windows/publish/Focus.exe
+            windows/Installer/Output/*.exe
+          if-no-files-found: error
+
+      # A tag is what makes a release; an ordinary push just leaves artifacts.
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            windows/publish/Focus.exe
+            windows/Installer/Output/*.exe
+          fail_on_unmatched_files: true

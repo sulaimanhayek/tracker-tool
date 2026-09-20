@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Focus.App.TimerView">
+  <ScrollViewer>
+    <StackPanel Spacing="22" Margin="28" HorizontalAlignment="Center">
+
+      <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
+        <Button Name="FocusTab" Classes="page" Content="Focus" Click="PickFocus" />
+        <Button Name="ShortTab" Classes="page" Content="Short Break" Click="PickShort" />
+        <Button Name="LongTab" Classes="page" Content="Long Break" Click="PickLong" />
+      </StackPanel>
+
+      <Panel Width="280" Height="280">
+        <Ellipse Width="280" Height="280" StrokeThickness="14" Stroke="#33808080" />
+        <Arc Name="Ring" Width="280" Height="280" StrokeThickness="14"
+             StartAngle="-90" SweepAngle="-360" StrokeLineCap="Round" />
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+          <TextBlock Name="Clock" FontSize="52" FontWeight="Light"
+                     HorizontalAlignment="Center" />
+          <TextBlock Name="ThemeLabel" Classes="caption" HorizontalAlignment="Center" />
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,4,0,0">
+            <Button Name="StartButton" Content="Start" Click="Toggle" Width="88" />
+            <Button Name="ResetButton" Content="Reset" Click="Reset" />
+          </StackPanel>
+        </StackPanel>
+      </Panel>
+
+      <Button Name="DurationLink" Classes="page" Click="OpenSettings" HorizontalAlignment="Center">
+        <TextBlock Name="DurationText" Classes="caption" />
+      </Button>
+
+      <StackPanel Spacing="10" Width="420">
+        <TextBlock Classes="heading" Text="What are you working on today?" />
+        <Grid ColumnDefinitions="*,Auto" >
+          <TextBox Name="NewTheme" Watermark="Add a theme — e.g. Deep work, Writing, Research"
+                   KeyDown="ThemeKey" />
+          <Button Grid.Column="1" Margin="8,0,0,0" Content="Add" Click="AddTheme" />
+        </Grid>
+        <TextBlock Name="NoThemes" Classes="caption" TextWrapping="Wrap"
+                   Text="No themes yet. Name one to start tracking where your focus goes." />
+        <ItemsControl Name="ThemeList">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

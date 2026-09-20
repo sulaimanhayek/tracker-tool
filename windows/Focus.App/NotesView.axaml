@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Focus.App.NotesView">
+  <Grid Margin="20" RowDefinitions="Auto,*,Auto" >
+    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" Margin="0,0,0,12">
+      <ComboBox Name="BoardPicker" Width="180" SelectionChanged="BoardChanged" />
+      <Button Grid.Column="1" Margin="8,0,0,0" Content="Board ▾">
+        <Button.Flyout>
+          <MenuFlyout>
+            <MenuItem Header="New board…" Click="NewBoard" />
+            <MenuItem Header="Rename board…" Click="RenameBoard" />
+            <MenuItem Name="TrashBoardItem" Header="Move board to Recycle Bin" Click="TrashBoard" />
+            <Separator />
+            <MenuItem Header="Show document in Explorer" Click="RevealBoard" />
+            <MenuItem Header="Reload from disk" Click="ReloadBoards" />
+          </MenuFlyout>
+        </Button.Flyout>
+      </Button>
+      <Button Name="OpenInWord" Grid.Column="3" Margin="0,0,8,0" Content="Open in Word" Click="OpenDocument" />
+      <Button Name="OrganiseButton" Grid.Column="4" Margin="0,0,8,0" Content="Organise" Click="Organise" />
+      <Button Grid.Column="5" Content="+ New note" Click="AddNote"
+              Background="#F26E5C" Foreground="White" />
+    </Grid>
+
+    <Border Name="Board" Grid.Row="1" CornerRadius="12" BorderThickness="1"
+            BorderBrush="#40808080" ClipToBounds="True" MinHeight="420">
+      <Panel>
+        <Canvas Name="Surface" Background="Transparent" />
+        <TextBlock Name="EmptyHint" IsVisible="False" Classes="caption"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
+      </Panel>
+    </Border>
+
+    <TextBlock Grid.Row="2" Margin="0,10,0,0" Classes="caption"
+               Text="This board is one Word document, a section per note. Drag by the top bar, resize from the bottom-right corner." />
+  </Grid>
+</UserControl>

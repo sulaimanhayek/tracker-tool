@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Focus.App.WelcomeWindow"
+        Title="Welcome to Focus" Width="520" SizeToContent="Height"
+        CanResize="False" WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="28" Spacing="18">
+    <TextBlock Text="Where should Focus keep your data?" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <TextBlock Classes="caption" TextWrapping="Wrap"
+               Text="Focus stores everything as plain files you can open yourself: a session log you can read in Excel, and one Word document per board of notes. Nothing leaves this PC. Pick a folder in OneDrive or Dropbox if you want it on more than one machine." />
+    <StackPanel Spacing="4">
+      <TextBlock Classes="caption" Text="sessions.csv — every stretch you finish, appended" />
+      <TextBlock Classes="caption" Text="themes.json — the things you work on" />
+      <TextBlock Classes="caption" Text="notes\ — a Word document per board" />
+    </StackPanel>
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <Button Content="Choose Folder…" Click="Choose" />
+      <Button Name="UseDefault" Grid.Column="2" Click="UseTheDefault" />
+    </Grid>
+  </StackPanel>
+</Window>

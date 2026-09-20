@@ -1,0 +1,52 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Focus.App.SettingsWindow"
+        Title="Settings" Width="540" Height="470"
+        CanResize="False" WindowStartupLocation="CenterOwner">
+  <TabControl Margin="12">
+
+    <TabItem Header="Timer">
+      <StackPanel Name="Durations" Spacing="12" Margin="10,16">
+        <TextBlock Classes="heading" Text="How long is a stretch?" />
+        <StackPanel Name="DurationRows" Spacing="10" />
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Type a number of minutes or use the arrows. A change to the stretch you are in now takes effect straight away; time already banked is kept." />
+        <CheckBox Name="SoundsToggle" Content="Play a tick when a stretch starts, and an alarm when it ends" />
+      </StackPanel>
+    </TabItem>
+
+    <TabItem Header="Appearance">
+      <StackPanel Spacing="12" Margin="10,16">
+        <TextBlock Classes="heading" Text="Background" />
+        <ItemsControl Name="Swatches">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Chosen once and remembered; the notes board and the rest of the app follow it. The same six the Mac app offers." />
+      </StackPanel>
+    </TabItem>
+
+    <TabItem Header="Storage">
+      <StackPanel Spacing="10" Margin="10,16">
+        <TextBlock Classes="heading" Text="Data folder" />
+        <SelectableTextBlock Name="FolderPath" FontFamily="Consolas,Menlo,monospace" TextWrapping="Wrap" />
+        <Border BorderThickness="1" CornerRadius="6" Height="150"
+                BorderBrush="#40808080">
+          <ScrollViewer>
+            <StackPanel Name="Directory" Margin="10" Spacing="3" />
+          </ScrollViewer>
+        </Border>
+        <CheckBox Name="MoveExisting" IsChecked="True" Content="Move my existing data to the new folder" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Change…" Click="ChangeFolder" />
+          <Button Content="Show in Explorer" Click="Reveal" />
+          <Button Content="Refresh" Click="RefreshDirectory" />
+        </StackPanel>
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Everything the app writes lives here: sessions.csv, themes.json and a Word document per board. A file already at the destination is never overwritten." />
+      </StackPanel>
+    </TabItem>
+  </TabControl>
+</Window>

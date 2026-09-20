@@ -6,4 +6,10 @@ dist
 .build
 .swiftpm
 mac/build
-*.app
+mac/**/*.app
+
+# .NET
+bin/
+obj/
+windows/publish
+windows/Installer/Output
