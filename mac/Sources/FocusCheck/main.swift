@@ -234,6 +234,17 @@ do {
     check("a second launch does not re-migrate", again.notes.count == 1)
 }
 
+print("\nSounds")
+do {
+    UserDefaults.standard.removeObject(forKey: "soundsEnabled")
+    check("sound is on until it is turned off", Sounds.isEnabled)
+    Sounds.isEnabled = false
+    check("turning it off sticks", !Sounds.isEnabled)
+    Sounds.isEnabled = true
+    check("and turning it back on sticks", Sounds.isEnabled)
+    UserDefaults.standard.removeObject(forKey: "soundsEnabled")
+}
+
 print("\nMoving the data folder")
 do {
     let manager = FileManager.default

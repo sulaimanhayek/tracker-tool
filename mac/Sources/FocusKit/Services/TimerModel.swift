@@ -62,6 +62,7 @@ public final class TimerModel: ObservableObject {
         deadline = Date().addingTimeInterval(remaining)
         if segmentStart == nil { segmentStart = Date() }
         isRunning = true
+        Sounds.tick()
 
         ticker = Timer.publish(every: 0.25, on: .main, in: .common)
             .autoconnect()
@@ -116,7 +117,7 @@ public final class TimerModel: ObservableObject {
     private func complete() {
         stopTicking()
         recordSegment(completed: true)
-        Chime.play()
+        Sounds.alarm()
 
         if mode == .focus {
             completedRounds = TimerModel.roundsSoFarToday() + 1
