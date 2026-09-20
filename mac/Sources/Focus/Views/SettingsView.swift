@@ -40,37 +40,10 @@ private struct DurationsSettings: View {
                 .font(.headline)
 
             ForEach(TimerMode.allCases) { mode in
-                HStack {
-                    Text(mode.label)
-                        .frame(width: 110, alignment: .leading)
-
-                    Stepper(
-                        value: Binding(
-                            get: { timer.durations[mode] ?? mode.defaultMinutes },
-                            set: {
-                                timer.durations[mode] = max(1, min(480, $0))
-                                timer.applyDurationChange()
-                            }
-                        ),
-                        in: 1...480
-                    ) {
-                        Text("\(timer.durations[mode] ?? mode.defaultMinutes) min")
-                            .monospacedDigit()
-                            .frame(width: 70, alignment: .leading)
-                    }
-
-                    Spacer()
-
-                    Button("Reset") {
-                        timer.durations[mode] = mode.defaultMinutes
-                        timer.applyDurationChange()
-                    }
-                    .buttonStyle(.link)
-                    .disabled((timer.durations[mode] ?? mode.defaultMinutes) == mode.defaultMinutes)
-                }
+                DurationRow(timer: timer, mode: mode)
             }
 
-            Text("A change to the stretch you are in now takes effect straight away; time already banked is kept.")
+            Text("Type a number of minutes or use the arrows. A change to the stretch you are in now takes effect straight away; time already banked is kept.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -79,6 +52,72 @@ private struct DurationsSettings: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, 8)
+    }
+}
+
+/// One mode's length, typed or nudged.
+///
+/// The field keeps its own text while it is being typed — a binding straight to
+/// the number would fight the keyboard, rewriting "6" to 6 before "60" is
+/// finished. It is read back when you press Return or leave the field, and
+/// anything that is not a usable number falls back to what was there.
+private struct DurationRow: View {
+    @ObservedObject var timer: TimerModel
+    let mode: TimerMode
+
+    @State private var text = ""
+    @FocusState private var typing: Bool
+
+    private var minutes: Int { timer.durations[mode] ?? mode.defaultMinutes }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(mode.label)
+                .frame(width: 110, alignment: .leading)
+
+            TextField("", text: $text)
+                .focused($typing)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .frame(width: 58)
+                .onSubmit(commit)
+                .onChange(of: typing) { _, isTyping in
+                    // Leaving the field counts as agreeing with what is in it.
+                    if isTyping { text = String(minutes) } else { commit() }
+                }
+
+            Text("min")
+                .foregroundStyle(.secondary)
+
+            Stepper("", value: Binding(get: { minutes }, set: { set($0) }), in: 1...480)
+                .labelsHidden()
+
+            Spacer()
+
+            Button("Reset") { set(mode.defaultMinutes) }
+                .buttonStyle(.link)
+                .disabled(minutes == mode.defaultMinutes)
+        }
+        .onAppear { text = String(minutes) }
+        // The arrows and Reset write the number, so the field follows them.
+        .onChange(of: minutes) { _, value in
+            if !typing { text = String(value) }
+        }
+    }
+
+    private func commit() {
+        let digits = text.trimmingCharacters(in: .whitespaces)
+        guard let typed = Int(digits), typed > 0 else {
+            text = String(minutes)
+            return
+        }
+        set(typed)
+        text = String(timer.durations[mode] ?? minutes)
+    }
+
+    private func set(_ value: Int) {
+        timer.durations[mode] = max(1, min(480, value))
+        timer.applyDurationChange()
     }
 }
 
