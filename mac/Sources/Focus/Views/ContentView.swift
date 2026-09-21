@@ -24,7 +24,9 @@ enum Page: String, CaseIterable, Identifiable {
 }
 
 struct ContentView: View {
-    @ObservedObject var timer: TimerModel
+    // Not observed here: only the timer page redraws as the clock ticks, not
+    // the notes board or the charts.
+    let timer: TimerModel
     @ObservedObject var log: SessionLog
     @ObservedObject var themes: ThemeStore
     @ObservedObject var notes: NotesStore

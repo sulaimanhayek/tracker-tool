@@ -1,9 +1,14 @@
+import AppKit
 import Combine
 import Foundation
 
 /// The countdown. Time left is derived from a wall-clock deadline rather than
 /// counted down by the tick, so a missed tick — or a sleeping Mac — cannot make the
 /// timer drift away from the clock.
+///
+/// It is also kept cheap on battery: rather than polling, it wakes exactly when
+/// the whole second on screen changes — and when no window of the app can be
+/// seen, only once more, at the deadline, to sound the alarm.
 public final class TimerModel: ObservableObject {
     @Published public private(set) var mode: TimerMode = .focus
     @Published public private(set) var remaining: TimeInterval
@@ -17,7 +22,8 @@ public final class TimerModel: ObservableObject {
     /// When the current stretch of focus began, for the session log.
     private var segmentStart: Date?
     private var deadline: Date?
-    private var ticker: AnyCancellable?
+    private var ticker: Timer?
+    private var occlusion: NSObjectProtocol?
 
     private let log: SessionLog
     private let themes: ThemeStore
@@ -37,6 +43,30 @@ public final class TimerModel: ObservableObject {
         durations = loaded
         remaining = TimeInterval((loaded[.focus] ?? 60) * 60)
         completedRounds = TimerModel.roundsSoFarToday()
+
+        // Hidden, minimised or behind other windows, there is no clock to keep
+        // up to date; coming back into view catches the display up at once.
+        occlusion = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeOcclusionStateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.tick()
+        }
+    }
+
+    deinit {
+        ticker?.invalidate()
+        if let occlusion { NotificationCenter.default.removeObserver(occlusion) }
+    }
+
+    /// How long from `remaining` until the whole second shown on screen next
+    /// changes — or until the countdown ends, once there is nothing left to show
+    /// but zero. The display rounds, so it turns over at each half second.
+    public static func delayUntilNextChange(from remaining: TimeInterval) -> TimeInterval {
+        let shown = remaining.rounded()
+        guard shown > 0 else { return max(0, remaining) }
+        return max(0, remaining - (shown - 0.5))
     }
 
     /// The round count is a today figure, so it starts again on a new day.
@@ -63,10 +93,7 @@ public final class TimerModel: ObservableObject {
         if segmentStart == nil { segmentStart = Date() }
         isRunning = true
         Sounds.tick()
-
-        ticker = Timer.publish(every: 0.25, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in self?.tick() }
+        schedule()
     }
 
     public func pause() {
@@ -99,7 +126,7 @@ public final class TimerModel: ObservableObject {
     // MARK: - Internals
 
     private func stopTicking() {
-        ticker?.cancel()
+        ticker?.invalidate()
         ticker = nil
         if isRunning, let deadline {
             remaining = max(0, deadline.timeIntervalSinceNow)
@@ -109,9 +136,39 @@ public final class TimerModel: ObservableObject {
     }
 
     private func tick() {
-        guard let deadline else { return }
-        remaining = max(0, deadline.timeIntervalSinceNow)
-        if remaining <= 0 { complete() }
+        guard isRunning, let deadline else { return }
+        let left = max(0, deadline.timeIntervalSinceNow)
+        guard left > 0 else {
+            remaining = 0
+            complete()
+            return
+        }
+        // Publishing re-renders every view watching the timer, so it happens
+        // only when the second on screen is a different one.
+        if left.rounded() != remaining.rounded() || !isOnScreen {
+            remaining = left
+        }
+        schedule()
+    }
+
+    private var isOnScreen: Bool {
+        NSApp?.occlusionState.contains(.visible) ?? true
+    }
+
+    /// One wake-up at a time, for the next moment anything needs doing.
+    private func schedule() {
+        ticker?.invalidate()
+        guard isRunning, let deadline else { return }
+        let left = max(0, deadline.timeIntervalSinceNow)
+        let delay = isOnScreen ? TimerModel.delayUntilNextChange(from: left) : left
+        let timer = Timer(timeInterval: max(0.01, delay), repeats: false) { [weak self] _ in
+            self?.tick()
+        }
+        // Lets macOS fold this wake-up in with others; a tenth of a second late
+        // is invisible on a clock that shows whole seconds.
+        timer.tolerance = 0.1
+        RunLoop.main.add(timer, forMode: .common)
+        ticker = timer
     }
 
     private func complete() {

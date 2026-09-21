@@ -16,7 +16,8 @@ struct RingView: View {
                 .trim(from: 0, to: max(0, min(1, progress)))
                 .stroke(tint, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .animation(.linear(duration: 0.25), value: progress)
+            // No animation between ticks: the ring moves a hair each second, and
+            // animating that would keep the screen redrawing all the time.
         }
     }
 }
