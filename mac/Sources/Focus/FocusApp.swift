@@ -5,7 +5,8 @@ import SwiftUI
 struct FocusApp: App {
     @StateObject private var log: SessionLog
     @StateObject private var themes: ThemeStore
-    @StateObject private var timer: TimerModel
+    // Held, not observed, so the app's scenes are not rebuilt every second.
+    @State private var timer: TimerModel
     @StateObject private var notes = NotesStore()
     @StateObject private var backgrounds = BackgroundStore()
     @AppStorage("soundsEnabled") private var soundsEnabled = true
@@ -19,7 +20,7 @@ struct FocusApp: App {
         let themes = ThemeStore()
         _log = StateObject(wrappedValue: log)
         _themes = StateObject(wrappedValue: themes)
-        _timer = StateObject(wrappedValue: TimerModel(log: log, themes: themes))
+        _timer = State(initialValue: TimerModel(log: log, themes: themes))
     }
 
     /// Points the app at another folder and re-reads everything from there.

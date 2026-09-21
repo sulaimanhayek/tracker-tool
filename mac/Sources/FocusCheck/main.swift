@@ -353,6 +353,17 @@ do {
     check("an empty folder lists nothing", DataFolder.listing(of: shown.appendingPathComponent("nowhere")).isEmpty)
 }
 
+print("\nTimer wake-ups")
+do {
+    let next = TimerModel.delayUntilNextChange
+    let close = { (a: TimeInterval, b: TimeInterval) in abs(a - b) < 0.0001 }
+    check("wakes when the shown second turns over", close(next(1500.0), 0.5))
+    check("mid-second, waits only for the rest of it", close(next(1499.8), 0.3))
+    check("never waits more than a second", close(next(1499.51), 0.01) && close(next(1499.49), 0.99))
+    check("with zero showing, waits for the deadline itself", close(next(0.4), 0.4))
+    check("a finished countdown does not wait", next(0) == 0 && next(-1) == 0)
+}
+
 print("")
 if failures == 0 {
     print("All checks passed.")
