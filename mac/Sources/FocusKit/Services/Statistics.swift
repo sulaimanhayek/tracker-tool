@@ -70,7 +70,18 @@ public enum Statistics {
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> [ThemeTotal] {
-        let current = start(of: now, grain: grain, calendar: calendar)
+        byTheme(sessions, in: start(of: now, grain: grain, calendar: calendar), grain: grain, calendar: calendar)
+    }
+
+    /// The same split, for one period of the chart rather than the current one —
+    /// what a bar is actually made of, largest share first.
+    public static func byTheme(
+        _ sessions: [Session],
+        in period: Date,
+        grain: Grain,
+        calendar: Calendar = .current
+    ) -> [ThemeTotal] {
+        let current = start(of: period, grain: grain, calendar: calendar)
         var totals: [String: Int] = [:]
 
         for session in sessions
