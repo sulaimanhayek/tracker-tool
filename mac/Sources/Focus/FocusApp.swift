@@ -54,6 +54,10 @@ struct FocusApp: App {
                     themes.load()
                     notes.reload()
                 }
+                Button("Add Untracked Time…") {
+                    NotificationCenter.default.post(name: .addManualTime, object: nil)
+                }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
                 Toggle("Play Sounds", isOn: $soundsEnabled)
                 Button("Change Data Folder…") {
                     if let url = DataFolderPicker.run(prompt: "Use This Folder") {
