@@ -46,7 +46,17 @@ the installer and the portable executable to each `v*` tag.
   recorded against.
 - **Insights** — daily, weekly, monthly and yearly totals, a chart of recent
   periods, and a breakdown by theme, all computed from the log when the page is
-  drawn.
+  drawn. Each theme wears a colour and a bar is stacked by theme in that same
+  order, so a theme sits at the same height from one bar to the next. Pointing at
+  a bar shows what it was made of; the label sits above the bar and is half
+  see-through, so neither the bar nor the pointer is hidden by the thing
+  explaining them. Bars keep one width whatever the period is — the leftover
+  width goes into the gaps, and the gap beside a bar belongs to it, so there is
+  no dead space to point at.
+- **Time added by hand** — **Add untracked time** on the Insights page records
+  focus time spent away from the timer. It is written to `sessions.csv` as an
+  ordinary session; the dialog says what it will add, and mentions an overlap or
+  a stretch running past midnight rather than refusing it.
 - **Notes** — boards of draggable, resizable sticky notes. A board is one Word
   document, a section per note.
 - **Settings** — durations (type the number or nudge it), the background, and the
@@ -83,23 +93,28 @@ is no Recycle Bin to use, it is moved aside rather than lost.
 
 ```
 Focus.Core/            No UI — the whole app apart from what you look at
-  Models/              TimerMode, Session, Grain, Note, Background
+  Models/              TimerMode, Session, Grain, Note, Background,
+                       ManualEntry
   Services/            Prefs, DataFolder, Csv, SessionLog, ThemeStore,
-                       TimerModel, Statistics, Sounds, NoteDocument, NotesStore
+                       TimerModel, Statistics, ChartData, Sounds, NoteDocument,
+                       NotesStore
 Focus.App/             The Avalonia app
   Shell.cs             The stores, the clock, and changing folder
   MainWindow           Header, pages, palette
-  TimerView, NotesView, StatsView, SettingsWindow, WelcomeWindow
+  TimerView, NotesView, StatsView, SettingsWindow, WelcomeWindow,
+  ManualEntryWindow
 Focus.Check/           The checks
 Installer/Focus.iss    Inno Setup script
 ```
 
 ## Checks
 
-`dotnet run --project Focus.Check` runs 97 checks against a temporary folder,
+`dotnet run --project Focus.Check` runs 137 checks against a temporary folder,
 covering CSV escaping, the session log's write-and-reload cycle, the bucketing
-arithmetic behind every figure Insights shows, the timer including past-midnight
-sessions, the notes board, and moving the data folder.
+arithmetic behind every figure Insights shows, the colours and stacking behind the
+chart, how wide a bar is and where the hover label lands, the rules for time added
+by hand, the timer including past-midnight sessions, the notes board, and moving the
+data folder.
 
 One section matters more than the rest. **Compatibility with the Mac app** holds a
 board document produced by the actual Swift code and requires the C# output to match
