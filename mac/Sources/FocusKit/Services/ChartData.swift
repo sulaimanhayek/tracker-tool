@@ -77,3 +77,27 @@ public enum ChartLayout {
         return max(tightestGap, (chartWidth - barWidth * count) / count)
     }
 }
+
+/// Where the hover label sits and how tall it is.
+///
+/// The label is put above the bar it describes rather than over it, so neither
+/// the bar nor the pointer is hidden by the thing explaining them.
+public enum ChartLabel {
+    /// The gap between the top of the bar and the bottom of the label.
+    public static let clearance: Double = 8
+
+    /// Worked out rather than measured, because the position is needed in the
+    /// same pass that draws the label.
+    public static func height(rows: Int) -> Double {
+        let heading = 15.0
+        let line = 15.0
+        // No rows means one line saying there is nothing to show.
+        return 16 + heading + (rows == 0 ? line : Double(rows) * line + line)
+    }
+
+    /// How far down from the top of the chart the label starts. It sits on top
+    /// of a tall bar only when there is no room above it.
+    public static func top(barHeight: Double, chartHeight: Double, footer: Double, labelHeight: Double) -> Double {
+        max(0, chartHeight - footer - barHeight - clearance - labelHeight)
+    }
+}

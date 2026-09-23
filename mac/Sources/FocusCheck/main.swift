@@ -510,6 +510,22 @@ do {
     check("a column is the bar plus its gap", ChartLayout.gap(count: 5, chartWidth: 900, barWidth: wide) + wide == 180)
 }
 
+print("\nWhere the hover label sits")
+do {
+    check("a label grows a line per theme", ChartLabel.height(rows: 3) - ChartLabel.height(rows: 2) == 15)
+    check("an empty period still has a label to show", ChartLabel.height(rows: 0) > 0)
+    check("a total is counted in as well as the themes", ChartLabel.height(rows: 1) > ChartLabel.height(rows: 0))
+
+    let labelHeight = ChartLabel.height(rows: 2)
+    let top = ChartLabel.top(barHeight: 30, chartHeight: 140, footer: 20, labelHeight: labelHeight)
+    check("the label sits above the bar, not over it", top + labelHeight + ChartLabel.clearance == 140 - 20 - 30)
+    check("a taller bar pushes its label further up", ChartLabel.top(barHeight: 60, chartHeight: 140, footer: 20, labelHeight: labelHeight) < top)
+    check(
+        "a bar with no room above it keeps the label in the chart",
+        ChartLabel.top(barHeight: 120, chartHeight: 140, footer: 20, labelHeight: labelHeight) == 0
+    )
+}
+
 print("")
 if failures == 0 {
     print("All checks passed.")
