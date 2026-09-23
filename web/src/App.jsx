@@ -1,21 +1,41 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import BackgroundPicker from './BackgroundPicker.jsx'
 import TimerPage from './TimerPage.jsx'
 import NotesPage from './NotesPage.jsx'
+import StatsPage from './StatsPage.jsx'
 import { useFullscreen } from './useFullscreen'
 import { useHashRoute } from './useHashRoute'
 import { BACKGROUND_STORAGE_KEY, backgroundByKey } from './backgrounds'
+import { DEFAULT_DURATIONS, STORAGE_KEY } from './constants'
+import { loadRows, row, saveRows, session } from './sessions'
 
 const PAGES = [
   { route: 'timer', label: 'Timer' },
-  { route: 'notes', label: 'Sticky Notes' }
+  { route: 'notes', label: 'Sticky Notes' },
+  { route: 'stats', label: 'Insights' }
 ]
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
 
 export default function App() {
   const route = useHashRoute()
   const fullscreen = useFullscreen()
+  const saved = useRef(loadState()).current
   const [mode, setMode] = useState('focus')
-  const [completedFocus, setCompletedFocus] = useState(0)
+  const [completedFocus, setCompletedFocus] = useState(saved?.completedFocus ?? 0)
+  const [durations, setDurations] = useState(saved?.durations ?? DEFAULT_DURATIONS)
+  // Themes and the log live here rather than on the timer page, because Insights
+  // reads both and the timer page is only one of the two things writing to them.
+  const [themes, setThemes] = useState(saved?.themes ?? [])
+  const [activeThemeId, setActiveThemeId] = useState(saved?.activeThemeId ?? null)
+  const [rows, setRows] = useState(loadRows)
   const [background, setBackground] = useState(() => {
     try {
       return localStorage.getItem(BACKGROUND_STORAGE_KEY) ?? 'midnight'
@@ -37,7 +57,26 @@ export default function App() {
     }
   }, [background])
 
+  useEffect(() => {
+    const state = { durations, themes, activeThemeId, completedFocus }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    } catch {
+      // Storage can be unavailable (private mode); the app still works in memory.
+    }
+  }, [durations, themes, activeThemeId, completedFocus])
+
+  useEffect(() => saveRows(rows), [rows])
+
+  // The log is kept as rows, in the shape the file has, and read into dates once
+  // rather than on every redraw of the chart.
+  const sessions = useMemo(() => rows.map(session), [rows])
+
+  const logSession = (start, end, theme, completed) =>
+    setRows((current) => [...current, row(start, end, theme, completed)])
+
   const onNotes = route === 'notes'
+  const onStats = route === 'stats'
 
   useEffect(() => {
     const onKey = (event) => {
@@ -55,7 +94,7 @@ export default function App() {
     if (onNotes) document.title = 'Sticky Notes'
   }, [onNotes])
 
-  const accent = onNotes ? 'mode-notes' : `mode-${mode}`
+  const accent = onNotes || onStats ? 'mode-notes' : `mode-${mode}`
 
   return (
     <div className={`app ${accent}${fullscreen.isFullscreen ? ' is-fullscreen' : ''}`}>
@@ -77,7 +116,7 @@ export default function App() {
         </div>
 
         <div className="topbar-right">
-          {!onNotes && <span className="rounds">{completedFocus} focus sessions today</span>}
+          {!onNotes && !onStats && <span className="rounds">{completedFocus} focus sessions today</span>}
           <BackgroundPicker value={background} onChange={setBackground} />
           <button
             className="icon-button"
@@ -110,13 +149,27 @@ export default function App() {
       {/* Both pages stay mounted so a running timer survives a page switch;
           the inactive one is only hidden. */}
       <TimerPage
-        active={!onNotes}
+        active={!onNotes && !onStats}
         mode={mode}
         setMode={setMode}
         completedFocus={completedFocus}
         setCompletedFocus={setCompletedFocus}
+        durations={durations}
+        setDurations={setDurations}
+        themes={themes}
+        setThemes={setThemes}
+        activeThemeId={activeThemeId}
+        setActiveThemeId={setActiveThemeId}
+        onSession={logSession}
       />
       <NotesPage active={onNotes} />
+      <StatsPage
+        active={onStats}
+        rows={rows}
+        sessions={sessions}
+        themes={themes}
+        onAdd={(entry) => logSession(entry.start, entry.end, entry.theme, true)}
+      />
     </div>
   )
 }

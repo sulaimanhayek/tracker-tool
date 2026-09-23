@@ -20,18 +20,32 @@ export function useTimer(totalSeconds, onComplete) {
   useEffect(() => {
     if (deadline === null) return
 
+    let id = 0
+
+    // One wake-up at a time, aimed at the moment the digit on screen changes,
+    // rather than four a second whether or not anything moved. A hidden tab gets
+    // a single wake-up for the whole remaining stretch: nothing is on screen to
+    // update, and the deadline is wall-clock, so it catches up exactly.
     const tick = () => {
+      clearTimeout(id)
       const left = Math.max(0, Math.round((deadline - Date.now()) / 1000))
       setRemaining(left)
       if (left === 0) {
         setDeadline(null)
         completeRef.current?.()
+        return
       }
+      const untilDigit = deadline - Date.now() - (left - 0.5) * 1000
+      const delay = document.hidden ? deadline - Date.now() : untilDigit
+      id = setTimeout(tick, Math.max(50, delay))
     }
 
-    const id = setInterval(tick, 250)
     tick()
-    return () => clearInterval(id)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      clearTimeout(id)
+      document.removeEventListener('visibilitychange', tick)
+    }
   }, [deadline])
 
   const start = useCallback(() => {

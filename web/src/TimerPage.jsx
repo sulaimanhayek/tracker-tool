@@ -3,23 +3,8 @@ import TimerRing from './TimerRing.jsx'
 import Themes from './Themes.jsx'
 import Settings from './Settings.jsx'
 import { useTimer } from './useTimer'
-import {
-  DEFAULT_DURATIONS,
-  MODES,
-  MODE_ORDER,
-  ROUNDS_BEFORE_LONG_BREAK,
-  STORAGE_KEY
-} from './constants'
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
-}
+import { SHORTEST_SESSION_SECONDS } from './sessions'
+import { DEFAULT_DURATIONS, MODES, MODE_ORDER, ROUNDS_BEFORE_LONG_BREAK } from './constants'
 
 function chime() {
   try {
@@ -39,18 +24,44 @@ function chime() {
   }
 }
 
-export default function TimerPage({ active, mode, setMode, completedFocus, setCompletedFocus }) {
-  const saved = useRef(loadState()).current
-
-  const [durations, setDurations] = useState(saved?.durations ?? DEFAULT_DURATIONS)
-  const [themes, setThemes] = useState(saved?.themes ?? [])
-  const [activeThemeId, setActiveThemeId] = useState(saved?.activeThemeId ?? null)
+export default function TimerPage({
+  active,
+  mode,
+  setMode,
+  completedFocus,
+  setCompletedFocus,
+  durations,
+  setDurations,
+  themes,
+  setThemes,
+  activeThemeId,
+  setActiveThemeId,
+  onSession
+}) {
   const [showSettings, setShowSettings] = useState(false)
 
   const totalSeconds = durations[mode] * 60
   const activeTheme = themes.find((theme) => theme.id === activeThemeId) ?? null
 
+  // One stretch of focus, from the moment the clock started running to the
+  // moment it stopped. Breaks are not work, and a stretch too short to mean
+  // anything is not worth a row in the log.
+  const segmentStart = useRef(null)
+  const themeName = activeTheme?.name ?? ''
+  const record = useCallback(
+    (completed) => {
+      const started = segmentStart.current
+      segmentStart.current = null
+      if (!started || mode !== 'focus') return
+      const end = new Date()
+      if ((end - started) / 1000 < SHORTEST_SESSION_SECONDS) return
+      onSession(started, end, themeName, completed)
+    },
+    [mode, themeName, onSession]
+  )
+
   const handleComplete = useCallback(() => {
+    record(true)
     chime()
     if (mode !== 'focus') {
       setMode('focus')
@@ -59,9 +70,28 @@ export default function TimerPage({ active, mode, setMode, completedFocus, setCo
     const rounds = completedFocus + 1
     setCompletedFocus(rounds)
     setMode(rounds % ROUNDS_BEFORE_LONG_BREAK === 0 ? 'long' : 'short')
-  }, [mode, completedFocus, setMode, setCompletedFocus])
+  }, [mode, completedFocus, setMode, setCompletedFocus, record])
 
-  const { remaining, running, reset, toggle } = useTimer(totalSeconds, handleComplete)
+  const { remaining, running, reset: clear, toggle: startOrPause } = useTimer(totalSeconds, handleComplete)
+
+  useEffect(() => {
+    if (running && !segmentStart.current) segmentStart.current = new Date()
+  }, [running])
+
+  const toggle = () => {
+    if (running) record(false)
+    startOrPause()
+  }
+
+  const reset = () => {
+    record(false)
+    clear()
+  }
+
+  const changeMode = (key) => {
+    record(false)
+    setMode(key)
+  }
 
   // Credit elapsed focus time to the selected theme.
   const previousRemaining = useRef(remaining)
@@ -75,15 +105,6 @@ export default function TimerPage({ active, mode, setMode, completedFocus, setCo
       )
     )
   }, [remaining, running, mode, activeThemeId])
-
-  useEffect(() => {
-    const state = { durations, themes, activeThemeId, completedFocus }
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    } catch {
-      // Storage can be unavailable (private mode); the app still works in memory.
-    }
-  }, [durations, themes, activeThemeId, completedFocus])
 
   useEffect(() => {
     if (!active) return
@@ -128,7 +149,7 @@ export default function TimerPage({ active, mode, setMode, completedFocus, setCo
             role="tab"
             aria-selected={mode === key}
             className={mode === key ? 'tab active' : 'tab'}
-            onClick={() => setMode(key)}
+            onClick={() => changeMode(key)}
           >
             {MODES[key].label}
           </button>

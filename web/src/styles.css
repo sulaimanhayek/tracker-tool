@@ -771,3 +771,137 @@ h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
   border-radius: 5px;
   border: 1px solid var(--border);
 }
+
+/* Insights */
+.main.stats { max-width: 680px; align-items: stretch; }
+.main.stats .tabs { align-self: center; }
+
+.stats-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stats-total { margin: 0; font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stats-period { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.stats-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.stats-count { margin: 0; color: var(--muted); font-size: 12px; text-align: center; }
+
+/* The bars. Each column carries its own gap, so pointing at the space beside a
+   bar still picks that bar. */
+.chart {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 12px 0;
+}
+
+.chart-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  flex: none;
+}
+
+.chart-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--track);
+  transition: opacity 120ms ease;
+}
+
+.chart-bar.dimmed { opacity: 0.5; }
+.chart-slice { display: block; width: 100%; }
+.chart-slice.empty { background: var(--track); }
+
+.chart-tick {
+  margin-top: 6px;
+  height: 14px;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Sits above the bar, half see-through, and never under the pointer. */
+.chart-label {
+  position: absolute;
+  pointer-events: none;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.chart-label-head { margin: 0 0 4px; font-weight: 600; font-size: 12px; }
+.chart-label-empty, .chart-label-row { margin: 0; display: flex; align-items: center; gap: 6px; }
+.chart-label-theme { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chart-label-time { font-variant-numeric: tabular-nums; }
+.chart-label-total { margin: 4px 0 0; font-weight: 600; }
+
+.chart-swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+.chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chart-legend li { display: flex; align-items: center; gap: 6px; }
+
+.theme-bars { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.theme-bars li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.theme-bar-name { width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-bar-track { flex: 1; height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.theme-bar-fill { display: block; height: 100%; border-radius: 999px; }
+.theme-bar-time { width: 64px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Time added by hand */
+.manual-entry {
+  width: 100%;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.manual-fields { display: flex; flex-wrap: wrap; gap: 12px; }
+.manual-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.manual-fields input, .manual-fields select {
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.manual-fields input:focus, .manual-fields select:focus { border-color: var(--accent); outline: none; }
+.manual-note { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+.manual-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
