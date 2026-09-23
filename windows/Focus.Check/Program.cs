@@ -101,11 +101,104 @@ Check("a blank theme is named", Statistics.ByTheme(
     new[] { new Session(At("2026-09-19 08:00:00"), At("2026-09-19 08:30:00"), "", true) },
     Grain.Day, now).First().Theme == "No theme");
 
+Console.WriteLine("\nColours and the chart in one pass");
+{
+    var monday = new Session(At("2026-09-21 09:00:00"), At("2026-09-21 10:00:00"), "Writing", true);
+    var mondayAdmin = new Session(At("2026-09-21 11:00:00"), At("2026-09-21 11:30:00"), "Admin", true);
+    var tuesday = new Session(At("2026-09-22 09:00:00"), At("2026-09-22 09:30:00"), "Admin", true);
+    var log2 = new[] { monday, mondayAdmin, tuesday };
+    var then = At("2026-09-22 20:00:00");
+
+    var order = ChartPalette.Order(log2);
+    Check("themes are coloured in the order they first appear",
+        string.Join(",", order) == "Writing,Admin");
+    Check("a theme named twice is only counted once",
+        ChartPalette.Order(log2.Concat(log2)).Count == order.Count);
+    Check("an unnamed theme is still shown",
+        ChartPalette.Order(new[] { new Session(At("2026-09-21 09:00:00"), At("2026-09-21 09:10:00"), "", true) })[0] == "No theme");
+    Check("the palette wraps rather than running out",
+        ChartPalette.Colour(ChartPalette.Colours.Length) == ChartPalette.Colours[0]);
+    Check("a colour before the first is still a colour", ChartPalette.Colour(-1) == ChartPalette.Colours[^1]);
+
+    var periods = Statistics.Breakdown(log2, Grain.Day, then);
+    Check("a bar per period", periods.Count == Grain.Day.Span());
+    Check("the last bar is today", periods[^1].Start == then.Date);
+    Check("each bar totals its sessions", periods[^1].Seconds == 1800);
+    Check("a bar is split by theme",
+        string.Join(",", periods[^2].Slices.Select(s => s.Theme)) == "Writing,Admin");
+    Check("a theme keeps its colour from bar to bar",
+        periods[^1].Slices[0].Colour == periods[^2].Slices[1].Colour);
+    Check("the slices add up to the bar",
+        periods[^2].Slices.Sum(s => s.Seconds) == periods[^2].Seconds);
+    Check("a period with nothing in it is still a bar",
+        periods[0].Seconds == 0 && periods[0].Slices.Count == 0);
+    Check("the bar carries its own labels", periods[^1].Title == Grain.Day.Title(then.Date));
+    Check("the breakdown agrees with the totals it replaces",
+        periods[^1].Seconds == Statistics.Total(log2, Grain.Day, then));
+}
+
+Console.WriteLine("\nHow wide a bar is");
+{
+    Check("a bar never grows past the widest",
+        ChartLayout.BarWidth(5, 600) == ChartLayout.WidestBar);
+    Check("a crowded chart makes them thinner",
+        ChartLayout.BarWidth(60, 600) < ChartLayout.WidestBar);
+    Check("a bar is always drawable", ChartLayout.BarWidth(400, 100) >= 2);
+    Check("the same width whatever the period",
+        ChartLayout.BarWidth(14, 600) == ChartLayout.BarWidth(5, 600));
+    Check("the columns span the chart",
+        Math.Abs((ChartLayout.BarWidth(14, 600) + ChartLayout.Gap(14, 600, ChartLayout.BarWidth(14, 600))) * 14 - 600) < 0.001);
+    Check("bars never touch",
+        ChartLayout.Gap(200, 600, ChartLayout.BarWidth(200, 600)) >= ChartLayout.TightestGap);
+    Check("a cramped chart still fits its bars",
+        (ChartLayout.BarWidth(14, 200) + ChartLayout.TightestGap) * 14 <= 200.001);
+}
+
+Console.WriteLine("\nWhere the hover label sits");
+{
+    Check("a short bar leaves the label above it",
+        ChartLabel.Top(20, 180, ChartLabel.Height(2)) + ChartLabel.Height(2) + ChartLabel.Clearance <= 180 - 20 + 0.001);
+    Check("a taller label is a taller label", ChartLabel.Height(4) > ChartLabel.Height(2));
+    Check("an empty period still has a line to show", ChartLabel.Height(0) > 0);
+    Check("a bar with no room above it keeps the label on the chart",
+        ChartLabel.Top(180, 180, ChartLabel.Height(6)) == 0);
+    Check("the label stays on the chart at the left edge",
+        ChartLabel.Left(5, 600, 170) == 0);
+    Check("and at the right edge", ChartLabel.Left(598, 600, 170) == 430);
+    Check("otherwise it is centred on the bar", ChartLabel.Left(300, 600, 170) == 215);
+}
+
+Console.WriteLine("\nTime added by hand");
+{
+    var then = At("2026-09-20 18:00:00");
+    var entry = ManualEntry.Build(At("2026-09-20 00:00:00"), new TimeSpan(9, 0, 0), new TimeSpan(10, 30, 0), "Reading");
+    Check("a hand-typed stretch is an ordinary session", entry.Seconds == 90 * 60);
+    Check("and it can be saved", ManualEntry.Problem(entry, then) is null);
+    Check("a minute is the shortest worth recording",
+        ManualEntry.Problem(ManualEntry.Build(then, new TimeSpan(9, 0, 0), new TimeSpan(9, 0, 0), ""), then) is not null);
+    Check("half a day is the longest",
+        ManualEntry.Problem(ManualEntry.Build(then, new TimeSpan(1, 0, 0), new TimeSpan(14, 0, 0), ""), then) is not null);
+    Check("time yet to happen is refused",
+        ManualEntry.Problem(ManualEntry.Build(then, new TimeSpan(19, 0, 0), new TimeSpan(20, 0, 0), ""), then) is not null);
+    Check("a night shift rolls past midnight",
+        ManualEntry.Build(then, new TimeSpan(23, 0, 0), new TimeSpan(1, 0, 0), "").Seconds == 2 * 3600);
+
+    var already = new[] { new Session(At("2026-09-20 09:30:00"), At("2026-09-20 10:00:00"), "Writing", true) };
+    Check("an entry over one already logged is spotted", ManualEntry.FirstOverlap(entry, already) is not null);
+    Check("ending exactly when the next begins is not",
+        !ManualEntry.Overlap(entry, new Session(At("2026-09-20 10:30:00"), At("2026-09-20 11:00:00"), "Writing", true)));
+    Check("an entry the log knows nothing about is clear",
+        ManualEntry.FirstOverlap(ManualEntry.Build(then, new TimeSpan(14, 0, 0), new TimeSpan(15, 0, 0), ""), already) is null);
+}
+
 Console.WriteLine("\nFormatting");
 Check("minutes alone", Statistics.Format(1800) == "30m");
 Check("whole hours", Statistics.Format(7200) == "2h");
 Check("hours and minutes", Statistics.Format(5430) == "1h 30m");
 Check("nothing is zero minutes", Statistics.Format(0) == "0m");
+Check("the label's clock pads its minutes", Statistics.Clock(5430) == "1:30");
+Check("and keeps a long day in hours", Statistics.Clock(36000) == "10:00");
+Check("under an hour still reads as a clock", Statistics.Clock(300) == "0:05");
 
 Console.WriteLine("\nThemes");
 var themes = new ThemeStore();

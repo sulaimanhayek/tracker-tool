@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Focus.App.ManualEntryWindow"
+        Title="Add untracked time" Width="460" SizeToContent="Height"
+        CanResize="False" WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24" Spacing="16">
+    <StackPanel Spacing="4">
+      <TextBlock Text="Time you spent focusing away from the timer" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="It is written to sessions.csv as an ordinary session, because what matters is what the day held, not which button recorded it." />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+      <TextBlock Text="Day" VerticalAlignment="Center" Margin="0,0,12,10" />
+      <DatePicker Name="Day" Grid.Column="1" HorizontalAlignment="Left" Margin="0,0,0,10" />
+
+      <TextBlock Grid.Row="1" Text="From" VerticalAlignment="Center" Margin="0,0,12,10" />
+      <TimePicker Name="From" Grid.Row="1" Grid.Column="1" ClockIdentifier="24HourClock" HorizontalAlignment="Left" Margin="0,0,0,10" />
+
+      <TextBlock Grid.Row="2" Text="To" VerticalAlignment="Center" Margin="0,0,12,10" />
+      <TimePicker Name="To" Grid.Row="2" Grid.Column="1" ClockIdentifier="24HourClock" HorizontalAlignment="Left" Margin="0,0,0,10" />
+
+      <TextBlock Grid.Row="3" Text="Theme" VerticalAlignment="Center" Margin="0,0,12,0" />
+      <ComboBox Name="ThemeChoice" Grid.Row="3" Grid.Column="1" MinWidth="200" HorizontalAlignment="Left" />
+    </Grid>
+
+    <TextBlock Name="Note" Classes="caption" TextWrapping="Wrap" />
+
+    <Grid ColumnDefinitions="*,Auto,Auto">
+      <Button Grid.Column="1" Content="Cancel" Click="Cancel" Margin="0,0,8,0" />
+      <Button Name="Save" Grid.Column="2" Content="Add" Click="Add" IsDefault="True" />
+    </Grid>
+  </StackPanel>
+</Window>

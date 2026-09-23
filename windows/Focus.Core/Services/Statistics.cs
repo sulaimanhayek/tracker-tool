@@ -65,11 +65,58 @@ public static class Statistics
         var current = Start(now ?? DateTime.Now, grain);
         return sessions
             .Where(s => Start(s.Start, grain) == current)
-            .GroupBy(s => s.Theme.Length == 0 ? "No theme" : s.Theme)
+            .GroupBy(s => Label(s.Theme))
             .Select(group => new ThemeTotal(group.Key, group.Sum(s => s.Seconds)))
             .OrderByDescending(t => t.Seconds)
             .ToList();
     }
+
+    /// A session with no theme still has to be called something.
+    public static string Label(string theme) => theme.Length == 0 ? "No theme" : theme;
+
+    /// The whole chart in one pass over the log: a bar per period, each split by
+    /// theme, with its labels already formatted.
+    public static List<PeriodBreakdown> Breakdown(IEnumerable<Session> sessions, Grain grain, DateTime? now = null)
+    {
+        var all = sessions as IReadOnlyCollection<Session> ?? sessions.ToList();
+        var current = Start(now ?? DateTime.Now, grain);
+        var colours = ChartPalette.Order(all);
+
+        var byPeriod = new Dictionary<DateTime, Dictionary<string, int>>();
+        foreach (var session in all)
+        {
+            var period = Start(session.Start, grain);
+            if (!byPeriod.TryGetValue(period, out var totals))
+                byPeriod[period] = totals = new Dictionary<string, int>();
+            var theme = Label(session.Theme);
+            totals[theme] = totals.GetValueOrDefault(theme) + session.Seconds;
+        }
+
+        return Enumerable.Range(0, grain.Span())
+            .Select(back => Step(current, grain, -(grain.Span() - 1 - back)))
+            .Select(period =>
+            {
+                var totals = byPeriod.GetValueOrDefault(period) ?? new Dictionary<string, int>();
+                // Slices keep the palette's order rather than the day's, so a
+                // theme sits at the same height from one bar to the next.
+                var slices = totals
+                    .Select(pair => new ThemeSlice(pair.Key, pair.Value, Math.Max(0, colours.IndexOf(pair.Key))))
+                    .OrderBy(slice => slice.Colour)
+                    .ToList();
+
+                return new PeriodBreakdown(
+                    period,
+                    grain.Title(period),
+                    grain.ShortTitle(period),
+                    slices.Sum(slice => slice.Seconds),
+                    slices);
+            })
+            .ToList();
+    }
+
+    /// `2:05` — hours and minutes, for the tight rows of the chart label where
+    /// every line has to line up.
+    public static string Clock(int seconds) => $"{seconds / 3600}:{seconds % 3600 / 60:00}";
 
     public static string Format(int seconds)
     {
