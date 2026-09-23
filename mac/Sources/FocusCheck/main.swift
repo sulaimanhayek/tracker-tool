@@ -364,6 +364,49 @@ do {
     check("a finished countdown does not wait", next(0) == 0 && next(-1) == 0)
 }
 
+print("\nTime added by hand")
+do {
+    let calendar = Calendar.current
+    let day = date("2025-03-04 00:00:00")
+    func at(_ hour: Int, _ minute: Int) -> Date {
+        calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day)!
+    }
+
+    let morning = ManualEntry.session(day: day, from: at(9, 0), to: at(11, 30), theme: "Writing", calendar: calendar)
+    check("the hours land on the day picked", calendar.isDate(morning.start, inSameDayAs: day))
+    check("the stretch is as long as the times say", morning.seconds == 150 * 60)
+    check("the theme is carried through", morning.theme == "Writing")
+    check("a stretch entered by hand is a finished one", morning.completed)
+    check("nothing is wrong with a plain morning", ManualEntry.problem(with: morning, now: at(23, 0)) == nil)
+
+    let overnight = ManualEntry.session(day: day, from: at(23, 30), to: at(0, 30), theme: "", calendar: calendar)
+    check("a finish before the start crosses midnight", overnight.seconds == 60 * 60)
+    check("but the row still belongs to the day it began", calendar.isDate(overnight.start, inSameDayAs: day))
+
+    let nothing = ManualEntry.session(day: day, from: at(9, 0), to: at(9, 0), theme: "", calendar: calendar)
+    check("a stretch with no time in it is refused", ManualEntry.problem(with: nothing) != nil)
+
+    let marathon = ManualEntry.session(day: day, from: at(1, 0), to: at(20, 0), theme: "", calendar: calendar)
+    check("an implausibly long stretch is refused", ManualEntry.problem(with: marathon) != nil)
+
+    check(
+        "time that has not happened yet is refused",
+        ManualEntry.problem(with: morning, now: at(9, 30)) != nil
+    )
+
+    let afternoon = ManualEntry.session(day: day, from: at(14, 0), to: at(15, 0), theme: "", calendar: calendar)
+    check("separate stretches do not overlap", !ManualEntry.overlap(morning, afternoon))
+    check("a stretch overlaps itself", ManualEntry.overlap(morning, morning))
+    check(
+        "an hour inside another is an overlap",
+        ManualEntry.overlap(morning, ManualEntry.session(day: day, from: at(10, 0), to: at(11, 0), theme: "", calendar: calendar))
+    )
+    check(
+        "ending exactly when the next begins is not",
+        !ManualEntry.overlap(afternoon, ManualEntry.session(day: day, from: at(15, 0), to: at(16, 0), theme: "", calendar: calendar))
+    )
+}
+
 print("")
 if failures == 0 {
     print("All checks passed.")

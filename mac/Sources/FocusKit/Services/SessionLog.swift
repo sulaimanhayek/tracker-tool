@@ -68,6 +68,12 @@ public final class SessionLog: ObservableObject {
         return formatter.date(from: "\(day) \(time)")
     }
 
+    /// An already-logged session covering some of the same minutes, if there is
+    /// one, so a manual entry can say so before it is saved twice.
+    public func firstOverlap(with session: Session) -> Session? {
+        sessions.first { ManualEntry.overlap(session, $0) }
+    }
+
     // MARK: - Writing
 
     /// Appends one row. The file is opened, extended and closed on each call, so an

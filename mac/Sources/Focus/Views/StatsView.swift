@@ -4,6 +4,7 @@ import SwiftUI
 struct StatsView: View {
     @ObservedObject var log: SessionLog
     var onChangeFolder: (URL, Bool) -> Void
+    var onAddTime: () -> Void
     @State private var grain: Grain = .day
 
     private let calendar = Calendar.current
@@ -18,7 +19,17 @@ struct StatsView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
 
-            headline
+            HStack(alignment: .top) {
+                headline
+                Spacer()
+                Button {
+                    onAddTime()
+                } label: {
+                    Label("Add untracked time", systemImage: "plus.circle")
+                }
+                .help("Log focus time you did not run the timer for")
+            }
+
             chart
             themes
 

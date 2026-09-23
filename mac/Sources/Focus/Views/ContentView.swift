@@ -1,6 +1,12 @@
 import FocusKit
 import SwiftUI
 
+extension Notification.Name {
+    /// Posted by the menu command, so adding time by hand is one keystroke from
+    /// any page rather than only from Insights.
+    static let addManualTime = Notification.Name("addManualTime")
+}
+
 enum Page: String, CaseIterable, Identifiable {
     case timer, notes, stats
 
@@ -35,7 +41,14 @@ struct ContentView: View {
     var onChangeFolder: (URL, Bool) -> Void
 
     @State private var page: Page = .timer
-    @State private var asking = !DataFolder.isChosen
+    @State private var sheet: Sheet? = DataFolder.isChosen ? nil : .welcome
+
+    /// The two things that interrupt the window. One sheet modifier, because
+    /// SwiftUI honours only one per view.
+    private enum Sheet: String, Identifiable {
+        case welcome, addTime
+        var id: String { rawValue }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,7 +56,8 @@ struct ContentView: View {
             switch page {
             case .timer: TimerView(timer: timer, themes: themes)
             case .notes: NotesView(store: notes)
-            case .stats: StatsView(log: log, onChangeFolder: onChangeFolder)
+            case .stats:
+                StatsView(log: log, onChangeFolder: onChangeFolder) { sheet = .addTime }
             }
 
             if let error = log.lastError ?? notes.lastError {
@@ -78,12 +92,21 @@ struct ContentView: View {
         .background(Color(backgrounds.current.background))
         .preferredColorScheme(backgrounds.current.isDark ? .dark : .light)
         .frame(minWidth: 720, minHeight: 680)
+        .onReceive(NotificationCenter.default.publisher(for: .addManualTime)) { _ in
+            sheet = .addTime
+        }
         // Asked once, on the very first launch; the answer can be changed
         // later from Insights.
-        .sheet(isPresented: $asking) {
-            WelcomeSheet { url, moveExisting in
-                onChangeFolder(url, moveExisting)
-                asking = false
+        .sheet(item: $sheet) { which in
+            switch which {
+            case .welcome:
+                WelcomeSheet { url, moveExisting in
+                    onChangeFolder(url, moveExisting)
+                    sheet = nil
+                }
+            case .addTime:
+                // Time worked away from the timer, typed in after the fact.
+                ManualEntrySheet(log: log, themes: themes) { sheet = nil }
             }
         }
     }
