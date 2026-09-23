@@ -86,13 +86,61 @@ public enum Statistics {
 
         for session in sessions
         where start(of: session.start, grain: grain, calendar: calendar) == current {
-            let theme = session.theme.isEmpty ? "No theme" : session.theme
-            totals[theme, default: 0] += session.seconds
+            totals[label(for: session.theme), default: 0] += session.seconds
         }
 
         return totals
             .map { ThemeTotal(theme: $0.key, seconds: $0.value) }
             .sorted { $0.seconds > $1.seconds }
+    }
+
+    /// A session with no theme still has to be called something.
+    public static func label(for theme: String) -> String {
+        theme.isEmpty ? "No theme" : theme
+    }
+
+    /// The whole chart in one pass over the log: a bar per period, each split by
+    /// theme, with its labels already formatted.
+    public static func breakdown(
+        _ sessions: [Session],
+        grain: Grain,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [PeriodBreakdown] {
+        let current = start(of: now, grain: grain, calendar: calendar)
+        let starts: [Date] = (0..<grain.span).reversed().compactMap {
+            calendar.date(byAdding: grain.component, value: -$0, to: current)
+        }
+
+        let colours = ChartPalette.order(of: sessions)
+        var byPeriod: [Date: [String: Int]] = [:]
+        for session in sessions {
+            let period = start(of: session.start, grain: grain, calendar: calendar)
+            byPeriod[period, default: [:]][label(for: session.theme), default: 0] += session.seconds
+        }
+
+        return starts.map { period in
+            let totals = byPeriod[period] ?? [:]
+            // Slices keep the palette's order rather than the day's, so a theme
+            // sits at the same height from one bar to the next.
+            let slices = totals
+                .map { ThemeSlice(theme: $0.key, seconds: $0.value, colour: colours.firstIndex(of: $0.key) ?? 0) }
+                .sorted { $0.colour < $1.colour }
+
+            return PeriodBreakdown(
+                start: period,
+                title: grain.title(for: period, calendar: calendar),
+                shortTitle: grain.shortTitle(for: period, calendar: calendar),
+                seconds: slices.reduce(0) { $0 + $1.seconds },
+                slices: slices
+            )
+        }
+    }
+
+    /// `2:05` — hours and minutes, for the tight rows of the chart label where
+    /// every line has to line up.
+    public static func clock(seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 3600, (seconds % 3600) / 60)
     }
 
     public static func format(seconds: Int) -> String {

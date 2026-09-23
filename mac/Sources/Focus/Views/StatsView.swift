@@ -7,6 +7,9 @@ struct StatsView: View {
     var onAddTime: () -> Void
     @State private var grain: Grain = .day
     @State private var hovered: Date?
+    /// The chart, worked out once. Pointing at a bar only reads from this, so
+    /// moving along the row costs nothing but a redraw.
+    @State private var periods: [PeriodBreakdown] = []
 
     private let calendar = Calendar.current
 
@@ -32,6 +35,7 @@ struct StatsView: View {
             }
 
             chart
+            legend
             themes
 
             Spacer(minLength: 0)
@@ -48,6 +52,13 @@ struct StatsView: View {
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onAppear(perform: rebuild)
+        .onChange(of: grain) { rebuild() }
+        .onChange(of: log.sessions.count) { rebuild() }
+    }
+
+    private func rebuild() {
+        periods = Statistics.breakdown(log.sessions, grain: grain, calendar: calendar)
     }
 
     private var headline: some View {
@@ -65,24 +76,20 @@ struct StatsView: View {
     }
 
     private var chart: some View {
-        let buckets = Statistics.buckets(log.sessions, grain: grain, calendar: calendar)
-        let peak = max(buckets.map(\.seconds).max() ?? 0, 1)
+        let peak = max(periods.map(\.seconds).max() ?? 0, 1)
         let spacing: CGFloat = 6
+        let height: CGFloat = 120
 
         return GeometryReader { geometry in
-            let width = (geometry.size.width - spacing * CGFloat(max(buckets.count - 1, 0)))
-                / CGFloat(max(buckets.count, 1))
+            let width = (geometry.size.width - spacing * CGFloat(max(periods.count - 1, 0)))
+                / CGFloat(max(periods.count, 1))
 
             HStack(alignment: .bottom, spacing: spacing) {
-                ForEach(buckets) { bucket in
+                ForEach(periods) { period in
                     VStack(spacing: 6) {
-                        // A floor of 2pt keeps empty periods visible as a gap in the
-                        // run rather than nothing at all.
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(fill(for: bucket))
-                            .frame(height: max(2, 120 * CGFloat(bucket.seconds) / CGFloat(peak)))
+                        bar(for: period, peak: peak, height: height)
 
-                        Text(grain.shortTitle(for: bucket.start, calendar: calendar))
+                        Text(period.shortTitle)
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -92,18 +99,18 @@ struct StatsView: View {
                     .contentShape(Rectangle())
                     .onHover { inside in
                         if inside {
-                            hovered = bucket.start
-                        } else if hovered == bucket.start {
+                            hovered = period.start
+                        } else if hovered == period.start {
                             hovered = nil
                         }
                     }
-                    .accessibilityLabel("\(grain.title(for: bucket.start, calendar: calendar)): \(Statistics.format(seconds: bucket.seconds))")
+                    .accessibilityLabel("\(period.title): \(Statistics.format(seconds: period.seconds))")
                 }
             }
             .frame(height: 140, alignment: .bottom)
             .overlay(alignment: .topLeading) {
-                if let hovered, let index = buckets.firstIndex(where: { $0.start == hovered }) {
-                    breakdown(for: hovered)
+                if let hovered, let index = periods.firstIndex(where: { $0.start == hovered }) {
+                    label(for: periods[index])
                         .offset(
                             x: cardOffset(
                                 barCentre: (width + spacing) * CGFloat(index) + width / 2,
@@ -117,64 +124,98 @@ struct StatsView: View {
         .frame(height: 140)
     }
 
-    /// Keeps the card beside the bar it belongs to without letting it run off
-    /// either end of the chart.
-    private func cardOffset(barCentre: CGFloat, chartWidth: CGFloat) -> CGFloat {
-        let cardWidth: CGFloat = 200
-        return min(max(0, barCentre - cardWidth / 2), max(0, chartWidth - cardWidth))
-    }
+    /// One bar, stacked out of its themes so the colours say where the time went
+    /// without anything having to be pointed at.
+    private func bar(for period: PeriodBreakdown, peak: Int, height: CGFloat) -> some View {
+        let scale = height / CGFloat(peak)
 
-    private func fill(for bucket: Bucket) -> Color {
-        if bucket.seconds == 0 {
-            return hovered == bucket.start ? Color.secondary.opacity(0.3) : Color.secondary.opacity(0.18)
-        }
-        return hovered == bucket.start ? Color.accentColor : Color.accentColor.opacity(0.8)
-    }
-
-    /// What one period was made of: the total, then the themes it went to.
-    private func breakdown(for period: Date) -> some View {
-        let totals = Statistics.byTheme(log.sessions, in: period, grain: grain, calendar: calendar)
-        let seconds = totals.reduce(0) { $0 + $1.seconds }
-
-        return VStack(alignment: .leading, spacing: 4) {
-            Text(grain.title(for: period, calendar: calendar))
-                .font(.caption.weight(.semibold))
-
-            Text(Statistics.format(seconds: seconds))
-                .font(.caption)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-
-            if totals.isEmpty {
-                Text("Nothing logged")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+        return VStack(spacing: 0) {
+            if period.slices.isEmpty {
+                // A sliver keeps empty periods visible as a gap in the run rather
+                // than nothing at all.
+                Rectangle()
+                    .fill(Color.secondary.opacity(hovered == period.start ? 0.3 : 0.18))
+                    .frame(height: 2)
             } else {
-                Divider()
-                ForEach(totals) { total in
-                    HStack(spacing: 8) {
-                        Text(total.theme)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        Text(Statistics.format(seconds: total.seconds))
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                    }
-                    .font(.caption2)
+                ForEach(period.slices.reversed()) { slice in
+                    Rectangle()
+                        .fill(Color(ChartPalette.colour(slice.colour)))
+                        .frame(height: max(1, scale * CGFloat(slice.seconds)))
                 }
             }
         }
+        .opacity(hovered == nil || hovered == period.start ? 1 : 0.55)
+        .clipShape(RoundedRectangle(cornerRadius: 3))
+    }
+
+    /// Keeps the card beside the bar it belongs to without letting it run off
+    /// either end of the chart.
+    private func cardOffset(barCentre: CGFloat, chartWidth: CGFloat) -> CGFloat {
+        let cardWidth: CGFloat = 170
+        return min(max(0, barCentre - cardWidth / 2), max(0, chartWidth - cardWidth))
+    }
+
+    /// The hover label: the day, its themes, the total. Plain shapes and no
+    /// blur, because this is redrawn every time the pointer crosses a bar.
+    private func label(for period: PeriodBreakdown) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(period.title)
+                .font(.caption.weight(.bold))
+
+            if period.slices.isEmpty {
+                Text("Nothing logged")
+                    .foregroundStyle(.white.opacity(0.6))
+            } else {
+                ForEach(period.slices) { slice in
+                    HStack(spacing: 5) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color(ChartPalette.colour(slice.colour)))
+                            .frame(width: 8, height: 8)
+                        Text("\(slice.theme):")
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(Statistics.clock(seconds: slice.seconds))
+                            .monospacedDigit()
+                    }
+                }
+
+                Text("TOTAL: \(Statistics.clock(seconds: period.seconds))")
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                    .padding(.top, 1)
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(.white)
         .padding(8)
-        .frame(width: 200, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
-        )
-        .shadow(radius: 6, y: 2)
+        .frame(width: 170, alignment: .leading)
+        .background(Color.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 6))
+    }
+
+    /// Which colour is which theme, for the whole span on screen.
+    private var legend: some View {
+        var seen: Set<String> = []
+        let slices = periods.flatMap(\.slices)
+            .filter { seen.insert($0.theme).inserted }
+            .sorted { $0.colour < $1.colour }
+
+        return FlowLayout(spacing: 10) {
+            ForEach(slices) { slice in
+                HStack(spacing: 5) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color(ChartPalette.colour(slice.colour)))
+                        .frame(width: 9, height: 9)
+                    Text(slice.theme)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
     }
 
     private var themes: some View {
+        let colours = ChartPalette.order(of: log.sessions)
         let totals = Statistics.byTheme(log.sessions, grain: grain, calendar: calendar)
         let peak = max(totals.first?.seconds ?? 0, 1)
 
@@ -195,7 +236,7 @@ struct StatsView: View {
 
                         GeometryReader { geometry in
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.accentColor.opacity(0.75))
+                                .fill(Color(ChartPalette.colour(colours.firstIndex(of: total.theme) ?? 0)))
                                 .frame(width: max(2, geometry.size.width * CGFloat(total.seconds) / CGFloat(peak)))
                         }
                         .frame(height: 14)
