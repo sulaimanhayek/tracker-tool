@@ -119,18 +119,32 @@ struct StatsView: View {
             .frame(height: 140, alignment: .bottom)
             .overlay(alignment: .topLeading) {
                 if let hovered, let index = periods.firstIndex(where: { $0.start == hovered }) {
-                    label(for: periods[index])
+                    let period = periods[index]
+                    let labelHeight = ChartLabel.height(rows: period.slices.count)
+
+                    label(for: period)
                         .offset(
                             x: cardOffset(
                                 barCentre: (width + spacing) * (CGFloat(index) + 0.5),
                                 chartWidth: geometry.size.width
-                            )
+                            ),
+                            y: CGFloat(ChartLabel.top(
+                                barHeight: Double(barHeight(of: period, peak: peak, height: height)),
+                                chartHeight: 140,
+                                footer: 140 - Double(height),
+                                labelHeight: labelHeight
+                            ))
                         )
                         .allowsHitTesting(false)
                 }
             }
         }
         .frame(height: 140)
+    }
+
+    /// How tall a bar stands, which is also where its label goes.
+    private func barHeight(of period: PeriodBreakdown, peak: Int, height: CGFloat) -> CGFloat {
+        max(2, height * CGFloat(period.seconds) / CGFloat(peak))
     }
 
     /// One bar, stacked out of its themes so the colours say where the time went
@@ -206,7 +220,7 @@ struct StatsView: View {
         .foregroundStyle(.white)
         .padding(8)
         .frame(width: 170, alignment: .leading)
-        .background(Color.black.opacity(0.92), in: RoundedRectangle(cornerRadius: 6))
+        .background(Color.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
     }
 
     /// Which colour is which theme, for the whole span on screen.
