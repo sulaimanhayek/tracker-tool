@@ -52,3 +52,28 @@ public enum ChartPalette {
         return order
     }
 }
+
+/// How wide a bar is and how far apart bars sit.
+///
+/// A bar is the same width in every tab — five years otherwise turn into five
+/// slabs while fourteen days are thin strips — and the width left over is shared
+/// between them, so the chart still spans the window.
+public enum ChartLayout {
+    public static let widestBar: Double = 34
+    public static let tightestGap: Double = 6
+
+    public static func barWidth(count: Int, chartWidth: Double) -> Double {
+        let count = Double(max(count, 1))
+        // Each bar carries its own gap, so a cramped chart still fits.
+        let room = chartWidth / count - tightestGap
+        return max(2, min(widestBar, room))
+    }
+
+    /// The gap belongs to the column rather than sitting between columns, so the
+    /// columns tile the chart and pointing anywhere above a gap still picks the
+    /// bar next to it.
+    public static func gap(count: Int, chartWidth: Double, barWidth: Double) -> Double {
+        let count = Double(max(count, 1))
+        return max(tightestGap, (chartWidth - barWidth * count) / count)
+    }
+}
