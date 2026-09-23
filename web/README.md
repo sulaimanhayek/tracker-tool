@@ -3,8 +3,9 @@
 A Pomodoro timer and a sticky-notes board, in one small React app. No backend, no
 accounts, no tracking — everything lives in the browser.
 
-> This is the web app. The native macOS version, which keeps its data as files on
-> disk, lives in [`../mac`](../mac). See the [repository README](../README.md).
+> This is the web app. The native versions, which keep their data as files on disk,
+> live in [`../mac`](../mac) and [`../windows`](../windows). See the
+> [repository README](../README.md).
 
 ## Features
 
@@ -19,6 +20,27 @@ accounts, no tracking — everything lives in the browser.
   focus time is credited to the selected theme, so you can see where the hours went.
 - A chime when a session ends, the remaining time in the tab title, and a
   full-screen mode that scales the ring up rather than just stretching the page.
+- Every focus stretch is logged when it ends, whether it ran out or you stopped it,
+  so an interruption is banked honestly rather than lost. Anything under a minute is
+  a false start and is not recorded.
+
+### Insights
+
+- Daily, weekly, monthly and yearly totals, all computed from the log when the page
+  is drawn rather than stored, so no figure can disagree with the record.
+- A chart of recent periods. Each theme wears a colour, taken in the order themes
+  first appear in the log, and a bar is stacked by theme in that same order, so a
+  theme sits at the same height from one bar to the next.
+- Pointing at a bar shows what it was made of. The breakdown is worked out once per
+  change and kept, so pointing along the chart is a lookup rather than another walk
+  through the log. The label sits above the bar and is half see-through, so neither
+  the bar nor the pointer is hidden by the thing explaining them.
+- Bars keep one width whatever the period is — at most 34px, with the leftover width
+  going into the gaps, and each gap belonging to the bar beside it so there is no
+  dead space to point at.
+- **Add untracked time** records focus time spent away from the timer. It becomes an
+  ordinary session; the form says what it will add, and mentions an overlap or a
+  stretch running past midnight rather than refusing it.
 
 ### Sticky notes
 
@@ -38,7 +60,7 @@ accounts, no tracking — everything lives in the browser.
 
 - Six background themes (four dark, two light) in the topbar. Each defines the whole
   token set, not just the background, so the light ones stay readable.
-- The timer keeps running when you switch pages — both pages stay mounted.
+- The timer keeps running when you switch pages — every page stays mounted.
 
 ## Keyboard
 
@@ -67,17 +89,26 @@ Then open http://localhost:5173.
 | `npm run dev` | Dev server with hot reload |
 | `npm run build` | Production bundle into `dist/` |
 | `npm run preview` | Serve the built bundle locally |
+| `npm test` | Run the checks (`checks.mjs`) |
 
 ## Storage
 
-State is kept in `localStorage` under three keys, which is deliberately temporary —
-real storage is still to be decided.
+State is kept in `localStorage` under four keys. A browser cannot write to a folder
+you choose and keep it up to date, which is why the native apps exist; here the
+session log lives under its own key instead of in a file.
 
 | Key | Holds |
 | --- | --- |
 | `tracker-tool.state.v1` | Durations, themes, completed rounds |
+| `tracker-tool.sessions.v1` | The session log |
 | `tracker-tool.notes.v1` | Folders, notes, board layout |
 | `tracker-tool.background.v1` | Selected background theme |
+
+The session log holds the same six fields as the native apps' `sessions.csv` —
+`date,start,end,minutes,theme,completed` — in the same order, and **Download sessions.csv**
+on the Insights page writes exactly that file, so a log started here opens in the
+Mac or Windows app. It is append-only in the same way: a row is added when a stretch
+ends and nothing is rewritten.
 
 Clearing site data resets the app. Nothing leaves the browser.
 
@@ -85,10 +116,12 @@ Clearing site data resets the app. Nothing leaves the browser.
 
 ```
 src/
-  App.jsx              Shell: topbar, hash routing, background theme
-  TimerPage.jsx        Timer state, themes, durations, persistence
+  App.jsx              Shell: topbar, routing, timer state, themes, the log
+  TimerPage.jsx        The timer: modes, ring, controls, recording sessions
   TimerRing.jsx        The circular countdown (display only)
   Themes.jsx           "What are you working on today?"
+  StatsPage.jsx        Insights: totals, the chart, the hover label, by theme
+  ManualEntry.jsx      Adding focus time spent away from the timer
   Settings.jsx         Duration editor
   NotesPage.jsx        Board state, folders, toolbar, exports
   StickyNote.jsx       One note: drag, resize, colour, delete
@@ -96,12 +129,15 @@ src/
   exportDoc.js         Word-compatible HTML export
   notes.js             Note constants, sizes, timestamp formatting
   constants.js         Modes, default durations, storage key
+  sessions.js          The session log: rows, CSV, and the rules for manual entry
+  stats.js             Totals, period breakdowns, colours, chart geometry
   backgrounds.js       Background themes
   useTimer.js          Countdown hook
   useFullscreen.js     Fullscreen API hook
-  useHashRoute.js      Two-page hash router
+  useHashRoute.js      Hash router
   ErrorBoundary.jsx    Crash screen
   styles.css           All styling
+checks.mjs             The checks: `npm test`
 ```
 
 ## Notes on the build
@@ -114,3 +150,10 @@ router package.
 
 Styling is plain CSS with custom properties. React writes values (`--progress`,
 `--note-width`, `--note-color`); the stylesheet owns the geometry.
+
+There is no test runner either. `checks.mjs` is a plain Node script of 50 checks
+over `sessions.js` and `stats.js` — the log's round trip through CSV, the bucketing
+behind every figure Insights shows, which theme gets which colour, how wide a bar is
+and where the hover label lands, and the rules for time added by hand. It mirrors
+the native apps' `focus-check`, so the three of them are held to the same arithmetic
+rather than merely looking alike.

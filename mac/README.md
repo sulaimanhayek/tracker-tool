@@ -42,6 +42,16 @@ keep in step.
   session is recorded against.
 - **Insights** — daily, weekly, monthly and yearly totals, a chart of recent
   periods, and a breakdown by theme. All of it is computed from the log on the fly.
+  Each theme wears a colour and a bar is stacked by theme in that same order, so a
+  theme sits at the same height from one bar to the next. Pointing at a bar shows
+  what it was made of; the label sits above the bar and is half see-through, so
+  neither the bar nor the pointer is hidden by the thing explaining them. Bars keep
+  one width whatever the period is — the leftover width goes into the gaps, and the
+  gap beside a bar belongs to it, so there is no dead space to point at.
+- **Time added by hand** — **Add untracked time** on the Insights page records focus
+  time spent away from the timer. It is written to `sessions.csv` as an ordinary
+  session; the sheet says what it will add, and mentions an overlap or a stretch
+  running past midnight rather than refusing it.
 - **Notes** — boards of draggable, resizable coloured sticky notes. Each board is
   a single Word document, a section per note, so what you open in Word is the
   board itself.
@@ -127,13 +137,14 @@ as it is rather than overwritten. *Reveal data folder* opens it in Finder, and
 ```
 Sources/
   FocusKit/            No UI — safe to exercise on its own
-    Models/            TimerMode, Session, Grain, Note, Background
+    Models/            TimerMode, Session, Grain, Note, Background, ManualEntry
     Services/          DataFolder, CSV, SessionLog, ThemeStore, TimerModel,
-                       Statistics, NoteDocument, NotesStore
+                       Statistics, ChartData, Sounds, NoteDocument, NotesStore
   Focus/               The app
     FocusApp.swift     Entry point, wiring, menu commands
     Views/             ContentView, TimerView, RingView, StatsView,
-                       NotesView, NoteCardView, SettingsView, FlowLayout
+                       ManualEntrySheet, NotesView, NoteCardView, SettingsView,
+                       DataFolderViews, FlowLayout
   FocusCheck/          The checks
 Scripts/build-app.sh   Builds the .app bundle
 Resources/Info.plist   Bundle metadata
@@ -141,11 +152,12 @@ Resources/Info.plist   Bundle metadata
 
 ## Checks
 
-`swift run focus-check` runs 111 checks against a temporary data folder, covering CSV
+`swift run focus-check` runs 167 checks against a temporary data folder, covering CSV
 escaping and round-tripping, the session log's write-and-reload cycle, the bucketing
-arithmetic behind every figure the Insights page shows, and the notes board: a
-document's text surviving the trip to disk and back, layout and colour persisting,
-folders, compiling, and trashing.
+arithmetic behind every figure the Insights page shows, the colours and stacking
+behind the chart, how wide a bar is and where the hover label lands, the rules for
+time added by hand, and the notes board: a document's text surviving the trip to
+disk and back, layout and colour persisting, folders, compiling, and trashing.
 
 XCTest ships with Xcode, which this project deliberately does not require, so the
 checks are a plain executable rather than a test target. If you install Xcode, they

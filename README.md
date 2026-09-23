@@ -9,7 +9,7 @@ This repository holds three apps:
 | --- | --- | --- |
 | [`mac/`](mac) | Native macOS app (Swift + SwiftUI) | Working |
 | [`windows/`](windows) | Native Windows app (C# + Avalonia) | Working |
-| [`web/`](web) | The original React app | Working, feature-complete |
+| [`web/`](web) | The original React app | Working |
 
 ## Why three
 
@@ -24,7 +24,11 @@ each one's checks hold a document produced by the other and require a byte-for-b
 match. Point both at the same folder — a shared drive, OneDrive, Dropbox — and they
 read each other's work.
 
-The web app stays as it is, both as a reference implementation and because it works.
+They also now do the same things. The web app keeps its data in the browser rather
+than in a folder, but its timer, notes, Insights page and manual entry match the
+native ones feature for feature, and the chart rules — a colour per theme, stacked
+bars, one bar width, the hover label above the bar — are the same three times over
+because they were worked out once and ported.
 
 ## The data
 
@@ -46,6 +50,10 @@ asks where you want it the first time it runs.
 nothing is ever rewritten, so a crash costs at most one row. Daily, weekly, monthly
 and yearly figures are computed in the app from that log rather than stored, which
 keeps the file append-only and means the numbers can never drift from the record.
+
+Focus time spent away from the timer can be typed in afterwards. It is written as an
+ordinary row, with no marker saying a person rather than a timer put it there,
+because what matters is what the day held.
 
 Open it in Numbers or Excel whenever you want your own view of it.
 
