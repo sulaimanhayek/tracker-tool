@@ -484,6 +484,32 @@ do {
     check("seconds left over do not round the minute up", Statistics.clock(seconds: 59) == "0:00")
 }
 
+print("\nHow wide a bar is")
+do {
+    let wide = ChartLayout.barWidth(count: 5, chartWidth: 900)
+    let narrow = ChartLayout.barWidth(count: 14, chartWidth: 900)
+    check("five years and fourteen days draw the same bar", wide == narrow)
+    check("a bar is never wider than the limit", wide == ChartLayout.widestBar)
+    check(
+        "bars narrow rather than overflow a small window",
+        ChartLayout.barWidth(count: 14, chartWidth: 200) < ChartLayout.widestBar
+    )
+    check("a bar is never narrower than a hairline", ChartLayout.barWidth(count: 400, chartWidth: 50) >= 2)
+
+    let gap = ChartLayout.gap(count: 5, chartWidth: 900, barWidth: wide)
+    check("the spare width goes into the gaps", 5 * (wide + gap) == 900)
+    check("fewer bars means wider gaps", gap > ChartLayout.gap(count: 14, chartWidth: 900, barWidth: narrow))
+    check(
+        "a cramped chart still fits the window",
+        14 * (ChartLayout.barWidth(count: 14, chartWidth: 200) + ChartLayout.gap(count: 14, chartWidth: 200, barWidth: ChartLayout.barWidth(count: 14, chartWidth: 200))) <= 200.001
+    )
+    check(
+        "gaps do not close up when there is no room",
+        ChartLayout.gap(count: 14, chartWidth: 200, barWidth: ChartLayout.barWidth(count: 14, chartWidth: 200)) - ChartLayout.tightestGap < 0.001
+    )
+    check("a column is the bar plus its gap", ChartLayout.gap(count: 5, chartWidth: 900, barWidth: wide) + wide == 180)
+}
+
 print("")
 if failures == 0 {
     print("All checks passed.")

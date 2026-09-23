@@ -77,23 +77,31 @@ struct StatsView: View {
 
     private var chart: some View {
         let peak = max(periods.map(\.seconds).max() ?? 0, 1)
-        let spacing: CGFloat = 6
         let height: CGFloat = 120
 
         return GeometryReader { geometry in
-            let width = (geometry.size.width - spacing * CGFloat(max(periods.count - 1, 0)))
-                / CGFloat(max(periods.count, 1))
+            // A bar is the same width whatever the period is; when there are few
+            // of them the gaps grow instead, rather than five years turning into
+            // five slabs.
+            let width = barWidth(chartWidth: geometry.size.width)
+            let spacing = gap(chartWidth: geometry.size.width, barWidth: width)
 
-            HStack(alignment: .bottom, spacing: spacing) {
+            HStack(alignment: .bottom, spacing: 0) {
                 ForEach(periods) { period in
                     VStack(spacing: 6) {
                         bar(for: period, peak: peak, height: height)
+                            .frame(width: width)
 
                         Text(period.shortTitle)
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                            .fixedSize()
                     }
+                    // The column, gap and all, is the target — so a thin bar, a
+                    // wide gap or an empty period is as easy to point at as a
+                    // tall bar.
+                    .frame(width: width + spacing)
                     // The whole column is the target, so a thin bar — or an empty
                     // period — is as easy to point at as a tall one.
                     .contentShape(Rectangle())
@@ -107,13 +115,14 @@ struct StatsView: View {
                     .accessibilityLabel("\(period.title): \(Statistics.format(seconds: period.seconds))")
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: 140, alignment: .bottom)
             .overlay(alignment: .topLeading) {
                 if let hovered, let index = periods.firstIndex(where: { $0.start == hovered }) {
                     label(for: periods[index])
                         .offset(
                             x: cardOffset(
-                                barCentre: (width + spacing) * CGFloat(index) + width / 2,
+                                barCentre: (width + spacing) * (CGFloat(index) + 0.5),
                                 chartWidth: geometry.size.width
                             )
                         )
@@ -146,6 +155,14 @@ struct StatsView: View {
         }
         .opacity(hovered == nil || hovered == period.start ? 1 : 0.55)
         .clipShape(RoundedRectangle(cornerRadius: 3))
+    }
+
+    private func barWidth(chartWidth: CGFloat) -> CGFloat {
+        CGFloat(ChartLayout.barWidth(count: periods.count, chartWidth: Double(chartWidth)))
+    }
+
+    private func gap(chartWidth: CGFloat, barWidth width: CGFloat) -> CGFloat {
+        CGFloat(ChartLayout.gap(count: periods.count, chartWidth: Double(chartWidth), barWidth: Double(width)))
     }
 
     /// Keeps the card beside the bar it belongs to without letting it run off
@@ -189,7 +206,7 @@ struct StatsView: View {
         .foregroundStyle(.white)
         .padding(8)
         .frame(width: 170, alignment: .leading)
-        .background(Color.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 6))
+        .background(Color.black.opacity(0.92), in: RoundedRectangle(cornerRadius: 6))
     }
 
     /// Which colour is which theme, for the whole span on screen.
