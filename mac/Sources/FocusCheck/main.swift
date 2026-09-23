@@ -443,6 +443,47 @@ do {
     )
 }
 
+print("\nColours and the chart in one pass")
+do {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "Europe/London")!
+
+    let monday = date("2025-03-03 09:00:00")
+    let tuesday = date("2025-03-04 09:00:00")
+    let sessions = [
+        Session(start: monday, end: monday.addingTimeInterval(3600), theme: "Writing", completed: true),
+        Session(start: monday.addingTimeInterval(7200), end: monday.addingTimeInterval(9000), theme: "Admin", completed: true),
+        Session(start: tuesday, end: tuesday.addingTimeInterval(1800), theme: "Admin", completed: true),
+        Session(start: tuesday.addingTimeInterval(3600), end: tuesday.addingTimeInterval(5400), theme: "Writing", completed: true)
+    ]
+
+    let order = ChartPalette.order(of: sessions)
+    check("themes are coloured in the order they first appear", order == ["Writing", "Admin"])
+    check("a theme named twice is only counted once", ChartPalette.order(of: sessions + sessions) == order)
+    check("an unnamed theme gets a colour too", ChartPalette.order(of: [Session(start: monday, end: tuesday, theme: "", completed: true)]) == ["No theme"])
+    check("the palette wraps rather than running out", ChartPalette.colour(ChartPalette.colours.count) == ChartPalette.colours[0])
+
+    let periods = Statistics.breakdown(sessions, grain: .day, now: tuesday, calendar: calendar)
+    check("a bar per period, as before", periods.count == Grain.day.span)
+    check(
+        "each bar totals what the plain buckets say",
+        periods.map(\.seconds) == Statistics.buckets(sessions, grain: .day, now: tuesday, calendar: calendar).map(\.seconds)
+    )
+
+    let mondayBar = periods.first { $0.start == Statistics.start(of: monday, grain: .day, calendar: calendar) }
+    let tuesdayBar = periods.first { $0.start == Statistics.start(of: tuesday, grain: .day, calendar: calendar) }
+    check("a bar is split by theme", mondayBar?.slices.map(\.theme) == ["Writing", "Admin"])
+    check("its slices add up to the bar", mondayBar?.slices.reduce(0) { $0 + $1.seconds } == mondayBar?.seconds)
+    check("a theme keeps its colour from one bar to the next", mondayBar?.slices.first?.colour == tuesdayBar?.slices.first?.colour)
+    check("slices are stacked in palette order, not by size", tuesdayBar?.slices.map(\.theme) == ["Writing", "Admin"])
+    check("an empty period has no slices", periods.first { $0.slices.isEmpty && $0.seconds == 0 } != nil)
+    check("labels come ready to draw", mondayBar?.title == Grain.day.title(for: mondayBar!.start, calendar: calendar))
+
+    check("the label clock shows hours and minutes", Statistics.clock(seconds: 45 * 60) == "0:45")
+    check("it pads the minutes", Statistics.clock(seconds: 2 * 3600 + 5 * 60) == "2:05")
+    check("seconds left over do not round the minute up", Statistics.clock(seconds: 59) == "0:00")
+}
+
 print("")
 if failures == 0 {
     print("All checks passed.")
