@@ -407,6 +407,42 @@ do {
     )
 }
 
+print("\nWhat one bar is made of")
+do {
+    let calendar = Calendar.current
+    let monday = date("2025-03-03 09:00:00")
+    let tuesday = date("2025-03-04 09:00:00")
+    let sessions = [
+        Session(start: monday, end: monday.addingTimeInterval(3600), theme: "Writing", completed: true),
+        Session(start: monday.addingTimeInterval(7200), end: monday.addingTimeInterval(9000), theme: "Admin", completed: true),
+        Session(start: monday.addingTimeInterval(10800), end: monday.addingTimeInterval(14400), theme: "Writing", completed: true),
+        Session(start: tuesday, end: tuesday.addingTimeInterval(1800), theme: "Reading", completed: true)
+    ]
+
+    let split = Statistics.byTheme(sessions, in: monday, grain: .day, calendar: calendar)
+    check("only that day's themes are counted", split.map(\.theme) == ["Writing", "Admin"])
+    check("the same theme twice in a day adds up", split[0].seconds == 2 * 3600)
+    check("the largest share comes first", split[0].seconds > split[1].seconds)
+    check(
+        "the split adds up to the bar it belongs to",
+        split.reduce(0) { $0 + $1.seconds }
+            == Statistics.buckets(sessions, grain: .day, now: monday, calendar: calendar).last?.seconds
+    )
+    check("a day with nothing on it splits into nothing", Statistics.byTheme(sessions, in: date("2025-03-05 09:00:00"), grain: .day, calendar: calendar).isEmpty)
+    check(
+        "a week gathers the days in it",
+        Statistics.byTheme(sessions, in: monday, grain: .week, calendar: calendar)
+            .reduce(0) { $0 + $1.seconds } == 3600 + 1800 + 3600 + 1800
+    )
+    check(
+        "an unnamed theme is still shown",
+        Statistics.byTheme(
+            [Session(start: monday, end: monday.addingTimeInterval(600), theme: "", completed: true)],
+            in: monday, grain: .day, calendar: calendar
+        ).first?.theme == "No theme"
+    )
+}
+
 print("")
 if failures == 0 {
     print("All checks passed.")
