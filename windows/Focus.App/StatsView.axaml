@@ -11,18 +11,24 @@
         </ItemsControl>
       </StackPanel>
 
-      <StackPanel Spacing="2">
-        <TextBlock Name="TotalValue" FontSize="40" FontWeight="SemiBold" />
-        <TextBlock Name="TotalCaption" Classes="caption" />
-      </StackPanel>
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="2">
+          <TextBlock Name="TotalValue" FontSize="40" FontWeight="SemiBold" />
+          <TextBlock Name="TotalCaption" Classes="caption" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Add untracked time" VerticalAlignment="Bottom" Click="AddTime" />
+      </Grid>
 
       <TextBlock Classes="heading" Text="Recent periods" />
       <Border Name="ChartFrame" BorderThickness="1" BorderBrush="#40808080" CornerRadius="10" Padding="14">
-        <StackPanel Spacing="8">
-          <Grid Name="Chart" Height="180" />
-          <Grid Name="ChartLabels" />
-        </StackPanel>
+        <Canvas Name="Chart" Height="200" ClipToBounds="True" Background="Transparent" />
       </Border>
+
+      <ItemsControl Name="Legend">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
 
       <TextBlock Classes="heading" Text="By theme" />
       <StackPanel Name="Themes" Spacing="8" />

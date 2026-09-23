@@ -40,10 +40,17 @@ public sealed class Shell : Observable
         Backgrounds = new BackgroundStore();
 
         // The view drives the clock: four times a second is enough for a smooth
-        // second hand, and the time left is read off the deadline anyway.
+        // ring, and the time left is read off the deadline anyway. The ticker
+        // only runs while the timer does — a paused app has no reason to wake
+        // the machine four times a second, which on a laptop is battery spent
+        // on nothing.
         var ticker = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        ticker.Tick += (_, _) => { if (Timer.IsRunning) Timer.Tick(); };
-        ticker.Start();
+        ticker.Tick += (_, _) => Timer.Tick();
+        Timer.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName != nameof(TimerModel.IsRunning)) return;
+            if (Timer.IsRunning) ticker.Start(); else ticker.Stop();
+        };
     }
 
     /// Points the app at another folder and re-reads everything from there.
